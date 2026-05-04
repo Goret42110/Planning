@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
+import { INITIAL_PERSONNEL } from '../data/initial'
 
 const LS_DATA_KEY  = 'els_planning_data'
 const LS_USERS_KEY = 'els_utilisateurs'
+const DATA_VERSION = 4
 
 const AUTH_ROLES     = ['responsable', 'ca', 'technicien']
 const PLANNING_ROLES = ['CA', 'TECH', 'RS']
@@ -17,22 +19,20 @@ const AUTH_ROLE_CLS    = {
   technicien:  'bg-slate-100 text-slate-600',
 }
 
-function loadState() {
-  // Charger utilisateurs (localStorage ou base statique)
-  let users = BASE_USERS
+function loadUsers() {
   try {
-    const stored = localStorage.getItem(LS_USERS_KEY)
-    if (stored) users = JSON.parse(stored)
+    const s = localStorage.getItem(LS_USERS_KEY)
+    if (s) return JSON.parse(s)
   } catch {}
+  return BASE_USERS
+}
 
-  // Charger personnel planning
-  let personnel = []
+function loadPersonnel() {
   try {
     const d = JSON.parse(localStorage.getItem(LS_DATA_KEY))
-    if (d?.personnel) personnel = d.personnel
+    if (d?.personnel?.length) return d.personnel
   } catch {}
-
-  return { users, personnel }
+  return INITIAL_PERSONNEL
 }
 
 function saveUsers(users) {
@@ -42,52 +42,60 @@ function saveUsers(users) {
 function savePersonnelField(id, updates) {
   try {
     const raw = localStorage.getItem(LS_DATA_KEY)
-    const d   = raw ? JSON.parse(raw) : {}
-    d.personnel = (d.personnel || []).map(p => p.id === id ? { ...p, ...updates } : p)
+    const d   = raw ? JSON.parse(raw) : { _version: DATA_VERSION, affaires: [], planning: {}, comments: {}, timesheets: {} }
+    if (!d._version) d._version = DATA_VERSION
+    if (!d.personnel) d.personnel = INITIAL_PERSONNEL
+    d.personnel = d.personnel.map(p => p.id === id ? { ...p, ...updates } : p)
     localStorage.setItem(LS_DATA_KEY, JSON.stringify(d))
   } catch {}
 }
 
 export default function AdminPage() {
-  const { session, logout } = useAuth()
-  const navigate = useNavigate()
+  const { logout } = useAuth()
+  const navigate   = useNavigate()
 
-  const [{ users, personnel }, setState] = useState(loadState)
-  const [saved, setSaved] = useState(false)
-  const [search, setSearch] = useState('')
+  const [users,     setUsers]     = useState(loadUsers)
+  const [personnel, setPersonnel] = useState(loadPersonnel)
+  const [saved,     setSaved]     = useState(false)
+  const [search,    setSearch]    = useState('')
 
   function getPerson(id) { return personnel.find(p => p.id === id) }
 
   function updateAuthRole(id, role) {
-    const next = users.map(u => u.id === id ? { ...u, role } : u)
-    setState(s => ({ ...s, users: next }))
-    saveUsers(next)
-    setSaved(true)
-  }
-
-  function updatePlanningField(id, field, value) {
-    const nextPersonnel = personnel.map(p => p.id === id ? { ...p, [field]: value } : p)
-    setState(s => ({ ...s, personnel: nextPersonnel }))
-    savePersonnelField(id, { [field]: value })
+    setUsers(prev => {
+      const next = prev.map(u => u.id === id ? { ...u, role } : u)
+      saveUsers(next)
+      return next
+    })
     setSaved(true)
   }
 
   function updatePassword(id, pwd) {
     if (!pwd.trim()) return
-    const next = users.map(u => u.id === id ? { ...u, motDePasse: pwd.trim() } : u)
-    setState(s => ({ ...s, users: next }))
-    saveUsers(next)
+    setUsers(prev => {
+      const next = prev.map(u => u.id === id ? { ...u, motDePasse: pwd.trim() } : u)
+      saveUsers(next)
+      return next
+    })
+    setSaved(true)
+  }
+
+  function updatePlanningField(id, field, value) {
+    setPersonnel(prev => {
+      const next = prev.map(p => p.id === id ? { ...p, [field]: value } : p)
+      savePersonnelField(id, { [field]: value })
+      return next
+    })
     setSaved(true)
   }
 
   function handleLogout() { logout(); navigate('/login', { replace: true }) }
 
-  // Regrouper par service
   const services = [...new Set(users.map(u => u.serviceId))]
   const SERVICE_LABELS = { direction: 'Direction', energie: 'Energie', petrole: 'Pétrole' }
 
   const filteredUsers = search.trim()
-    ? users.filter(u => `${u.prenom} ${u.nom}`.toLowerCase().includes(search.toLowerCase()) || u.identifiant.includes(search.toLowerCase()))
+    ? users.filter(u => `${u.prenom} ${u.nom}`.toLowerCase().includes(search.toLowerCase()))
     : users
 
   return (
@@ -120,14 +128,17 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto px-6 py-6">
         {saved && (
           <div className="mb-4 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
-            <span>✓</span> Modifications enregistrées. Les changements de rôle prennent effet à la prochaine connexion.
+            ✓ Modifications enregistrées. Les changements de rôle prennent effet à la prochaine connexion de l'utilisateur.
           </div>
         )}
 
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-xl font-bold text-slate-900">Utilisateurs <span className="text-slate-400 font-normal text-base ml-1">{users.length}</span></h1>
+          <h1 className="text-xl font-bold text-slate-900">
+            Utilisateurs <span className="text-slate-400 font-normal text-base ml-1">{users.length}</span>
+          </h1>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher…" className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-blue-400 w-52" />
+            placeholder="Rechercher…"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-blue-400 w-52" />
         </div>
 
         <div className="space-y-6">
@@ -142,31 +153,30 @@ export default function AdminPage() {
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50">
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium w-48">Nom</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium w-32">Identifiant</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium w-36">Rôle application</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium w-28">Rôle planning</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium w-28">Qualification</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium w-32">Type</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium w-16">Actif</th>
-                        <th className="text-left px-4 py-2.5 text-xs text-slate-500 font-medium">Mot de passe</th>
+                      <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 font-medium">
+                        <th className="px-4 py-2.5 w-44">Nom</th>
+                        <th className="px-4 py-2.5 w-32">Identifiant</th>
+                        <th className="px-4 py-2.5 w-36">Rôle application</th>
+                        <th className="px-4 py-2.5 w-28">Rôle planning</th>
+                        <th className="px-4 py-2.5 w-28">Qualification</th>
+                        <th className="px-4 py-2.5 w-32">Type</th>
+                        <th className="px-4 py-2.5 w-16">Actif</th>
+                        <th className="px-4 py-2.5">Mot de passe</th>
                       </tr>
                     </thead>
                     <tbody>
                       {svcUsers.map((u, i) => {
                         const person = getPerson(u.id)
                         return (
-                          <tr key={u.id} className={`${i < svcUsers.length - 1 ? 'border-b border-slate-100' : ''} hover:bg-slate-50 transition-colors`}>
+                          <tr key={u.id} className={`${i < svcUsers.length - 1 ? 'border-b border-slate-100' : ''} hover:bg-slate-50`}>
+
                             {/* Nom */}
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
-                                  {u.prenom[0]}{u.nom[0]}
+                                  {(u.prenom || '?')[0]}{(u.nom || '?')[0]}
                                 </div>
-                                <div>
-                                  <div className="font-medium text-slate-800 text-sm">{u.prenom} {u.nom}</div>
-                                </div>
+                                <span className="font-medium text-slate-800 text-sm">{u.prenom} {u.nom}</span>
                               </div>
                             </td>
 
@@ -199,10 +209,10 @@ export default function AdminPage() {
                             <td className="px-4 py-3">
                               {person ? (
                                 <input
-                                  defaultValue={person.qualification || ''}
-                                  onBlur={e => updatePlanningField(u.id, 'qualification', e.target.value)}
+                                  value={person.qualification || ''}
+                                  onChange={e => updatePlanningField(u.id, 'qualification', e.target.value)}
                                   placeholder="ex: CE"
-                                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-full bg-white focus:outline-none focus:border-blue-400"
+                                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-20 bg-white focus:outline-none focus:border-blue-400"
                                 />
                               ) : <span className="text-slate-300 text-xs">—</span>}
                             </td>
@@ -222,8 +232,8 @@ export default function AdminPage() {
                             <td className="px-4 py-3">
                               {person ? (
                                 <button onClick={() => updatePlanningField(u.id, 'actif', !person.actif)}
-                                  className={`w-9 h-5 rounded-full transition-colors relative ${person.actif ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${person.actif ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                  className={`w-9 h-5 rounded-full transition-colors relative ${person.actif !== false ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${person.actif !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
                                 </button>
                               ) : <span className="text-slate-300 text-xs">—</span>}
                             </td>
@@ -265,7 +275,7 @@ function PasswordCell({ onSave }) {
         className="text-xs border border-slate-200 rounded px-2 py-1 w-24 focus:outline-none focus:border-blue-400" />
       <button onClick={() => { onSave(val); setVal(''); setEditing(false) }}
         disabled={!val.trim()}
-        className="text-xs bg-blue-600 disabled:bg-blue-200 text-white px-2 py-1 rounded transition-colors">✓</button>
+        className="text-xs bg-blue-600 disabled:bg-blue-200 text-white px-2 py-1 rounded">✓</button>
       <button onClick={() => setEditing(false)}
         className="text-xs text-slate-400 hover:text-slate-600 px-1">✕</button>
     </div>
