@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import App from './App.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import AdminPage from './pages/AdminPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import TechnicienRoute from './components/TechnicienRoute.jsx'
 import './index.css'
@@ -25,6 +26,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
           <Route element={<ProtectedRoute roles={['responsable', 'ca']} />}>
             <Route path="/planning" element={<App />} />
+          </Route>
+
+          <Route element={<ProtectedRoute roles={['responsable']} />}>
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
 
           <Route element={<ProtectedRoute roles={['technicien', 'responsable']} />}>

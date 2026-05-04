@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../App'
 
@@ -67,9 +67,15 @@ export default function Header() {
                 {roleInfo.label}
               </div>
             </div>
+            {session?.role === 'responsable' && (
+              <Link to="/admin"
+                className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors">
+                ⚙ Admin
+              </Link>
+            )}
             <button
               onClick={handleLogout}
-              className="ml-2 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
             >
               Déconnexion
             </button>

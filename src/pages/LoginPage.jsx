@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { utilisateurs } from '../data/utilisateurs'
+import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
+
+function getUsers() {
+  try {
+    const s = localStorage.getItem('els_utilisateurs')
+    if (s) return JSON.parse(s)
+  } catch {}
+  return BASE_USERS
+}
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -12,7 +20,7 @@ export default function LoginPage() {
 
   function handleSubmit(e) {
     e.preventDefault()
-    const user = utilisateurs.find(
+    const user = getUsers().find(
       u => u.identifiant === identifiant.trim().toLowerCase() && u.motDePasse === motDePasse
     )
     if (!user) {
