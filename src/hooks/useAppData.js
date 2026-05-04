@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { INITIAL_PERSONNEL, INITIAL_AFFAIRES, INITIAL_PLANNING } from '../data/initial';
 
 const STORAGE_KEY = 'els_planning_data';
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
 
 function genId() {
   return `id_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;

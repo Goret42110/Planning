@@ -58,6 +58,7 @@ export default function AffaireList() {
               </div>
               <div className="text-right shrink-0">
                 <div className="text-amber-600 text-sm font-medium">{getCAName(a.caId)}</div>
+                {a.montantHT > 0 && <div className="text-slate-700 text-xs font-semibold">{Number(a.montantHT).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>}
                 {a.heuresPrevues && <div className="text-slate-400 text-xs">{a.heuresPrevues}h prévues</div>}
               </div>
               <div className="flex gap-1 shrink-0">

@@ -9,7 +9,7 @@ export default function AffaireForm({ affaire, onClose }) {
 
   const [form, setForm] = useState({
     numero: '', intitule: '', client: '', adresse: '',
-    heuresPrevues: '', caId: caList[0]?.id || '', statut: 'active',
+    heuresPrevues: '', montantHT: '', caId: caList[0]?.id || '', statut: 'active',
     dateDebut: '', dateFin: '',
     ...(affaire || {}),
   })
@@ -47,14 +47,18 @@ export default function AffaireForm({ affaire, onClose }) {
             <label className="block text-xs text-slate-500 mb-1 font-medium">Intitulé *</label>
             <input className="input-dark w-full" value={form.intitule} onChange={e => set('intitule', e.target.value)} placeholder="STEP CLERMONT" required />
           </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1 font-medium">Client</label>
+            <input className="input-dark w-full" value={form.client} onChange={e => set('client', e.target.value)} placeholder="SUEZ" />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-500 mb-1 font-medium">Client</label>
-              <input className="input-dark w-full" value={form.client} onChange={e => set('client', e.target.value)} placeholder="SUEZ" />
+              <label className="block text-xs text-slate-500 mb-1 font-medium">Montant HT (€)</label>
+              <input type="number" className="input-dark w-full" value={form.montantHT} onChange={e => set('montantHT', e.target.value)} placeholder="50000" />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1 font-medium">Heures prévues</label>
-              <input type="number" className="input-dark w-full" value={form.heuresPrevues} onChange={e => set('heuresPrevues', e.target.value)} placeholder="4868" />
+              <input type="number" className="input-dark w-full" value={form.heuresPrevues} onChange={e => set('heuresPrevues', e.target.value)} placeholder="500" />
             </div>
           </div>
           <div>
