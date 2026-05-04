@@ -38,8 +38,8 @@ export default function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        {/* CA filter — responsable only */}
-        {session?.role === 'responsable' && (
+        {/* CA filter — visible pour tous */}
+        {cas.length > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-slate-400 text-xs">Vue CA :</span>
             <select

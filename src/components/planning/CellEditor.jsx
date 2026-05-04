@@ -45,12 +45,12 @@ export default function CellEditor({ value, position, onClose, onSelect, comment
   }, [activeAffaires, search])
 
   // Position: open above if not enough space below
-  const POPUP_H = 380
+  const POPUP_H = 460
   const spaceBelow = window.innerHeight - position.y - 8
   const top = spaceBelow >= POPUP_H
     ? position.y
     : Math.max(8, window.innerHeight - POPUP_H - 8)
-  const left = Math.min(position.x, window.innerWidth - 252)
+  const left = Math.min(position.x, window.innerWidth - 300)
 
   function handleSelect(id) {
     if (id === null) { onSelect(null); return }
@@ -73,7 +73,7 @@ export default function CellEditor({ value, position, onClose, onSelect, comment
   return (
     <div
       ref={ref}
-      style={{ position: 'fixed', top, left, zIndex: 1000, width: 244 }}
+      style={{ position: 'fixed', top, left, zIndex: 1000, width: 296 }}
       className="bg-white border border-slate-200 rounded-xl shadow-xl text-sm overflow-hidden flex flex-col"
     >
       {/* ── Slots actuels (si rempli) ── */}
@@ -123,6 +123,20 @@ export default function CellEditor({ value, position, onClose, onSelect, comment
         </div>
       )}
 
+      {/* ── Recherche (toujours en haut) ── */}
+      <div className="px-2.5 pt-2 pb-1.5 border-b border-slate-100">
+        <input
+          autoFocus
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="N° affaire, intitulé, client…"
+          className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-400 text-slate-800 placeholder-slate-400 bg-slate-50"
+        />
+        {search && (
+          <div className="text-xs text-slate-400 mt-1 px-0.5">{filteredAffaires.length} résultat{filteredAffaires.length !== 1 ? 's' : ''}</div>
+        )}
+      </div>
+
       {/* ── Commentaire ── */}
       {commentKey && (
         <div className="px-2.5 pt-2 pb-1.5 border-b border-slate-100">
@@ -137,19 +151,8 @@ export default function CellEditor({ value, position, onClose, onSelect, comment
         </div>
       )}
 
-      {/* ── Recherche ── */}
-      <div className="px-2.5 pt-2 pb-1.5">
-        <input
-          autoFocus
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher affaire…"
-          className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-400 text-slate-800 placeholder-slate-400 bg-slate-50"
-        />
-      </div>
-
       {/* ── Liste scrollable : affaires d'abord, puis codes ── */}
-      <div className="overflow-y-auto flex-1" style={{ maxHeight: 260 }}>
+      <div className="overflow-y-auto flex-1" style={{ maxHeight: 320 }}>
 
         {/* Affaires */}
         {!splitMode && (
