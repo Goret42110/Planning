@@ -56,9 +56,14 @@ export default function AffaireList() {
                 <div className="text-slate-700 text-sm mt-0.5 font-medium">{a.intitule}</div>
                 <div className="text-slate-400 text-xs mt-0.5">{a.client}{a.adresse ? ` — ${a.adresse}` : ''}</div>
               </div>
-              <div className="text-right shrink-0">
+              <div className="text-right shrink-0 space-y-0.5">
                 <div className="text-amber-600 text-sm font-medium">{getCAName(a.caId)}</div>
                 {a.montantHT > 0 && <div className="text-slate-700 text-xs font-semibold">{Number(a.montantHT).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>}
+                {a.probabilite != null && (
+                  <div className={`text-xs font-bold px-1.5 py-0.5 rounded inline-block ${a.probabilite === 100 ? 'bg-green-100 text-green-700' : a.probabilite >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                    {a.probabilite}%
+                  </div>
+                )}
                 {a.heuresPrevues && <div className="text-slate-400 text-xs">{a.heuresPrevues}h prévues</div>}
               </div>
               <div className="flex gap-1 shrink-0">

@@ -9,7 +9,7 @@ export default function AffaireForm({ affaire, onClose }) {
 
   const [form, setForm] = useState({
     numero: '', intitule: '', client: '', adresse: '',
-    heuresPrevues: '', montantHT: '', caId: caList[0]?.id || '', statut: 'active',
+    heuresPrevues: '', montantHT: '', probabilite: 100, caId: caList[0]?.id || '', statut: 'active',
     dateDebut: '', dateFin: '',
     ...(affaire || {}),
   })
@@ -51,7 +51,7 @@ export default function AffaireForm({ affaire, onClose }) {
             <label className="block text-xs text-slate-500 mb-1 font-medium">Client</label>
             <input className="input-dark w-full" value={form.client} onChange={e => set('client', e.target.value)} placeholder="SUEZ" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-slate-500 mb-1 font-medium">Montant HT (€)</label>
               <input type="number" className="input-dark w-full" value={form.montantHT} onChange={e => set('montantHT', e.target.value)} placeholder="50000" />
@@ -59,6 +59,12 @@ export default function AffaireForm({ affaire, onClose }) {
             <div>
               <label className="block text-xs text-slate-500 mb-1 font-medium">Heures prévues</label>
               <input type="number" className="input-dark w-full" value={form.heuresPrevues} onChange={e => set('heuresPrevues', e.target.value)} placeholder="500" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1 font-medium">Probabilité (%)</label>
+              <select className="input-dark w-full" value={form.probabilite} onChange={e => set('probabilite', Number(e.target.value))}>
+                {[10, 15, 20, 25, 30, 50, 75, 100].map(p => <option key={p} value={p}>{p}%</option>)}
+              </select>
             </div>
           </div>
           <div>
