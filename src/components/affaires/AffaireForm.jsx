@@ -1,17 +1,23 @@
 import { useState } from 'react'
 import { useApp } from '../../App'
+import { useAuth } from '../../context/AuthContext'
 
 const STATUTS = ['active', 'en attente', 'terminée', 'perdue']
 
 export default function AffaireForm({ affaire, onClose }) {
   const { personnel, addAffaire, updateAffaire } = useApp()
+  const { session } = useAuth()
   const caList = personnel.filter(p => p.role === 'CA' && p.actif)
+  const isCA = session?.role === 'ca'
 
   const [form, setForm] = useState({
     numero: '', intitule: '', client: '', adresse: '',
-    heuresPrevues: '', montantHT: '', probabilite: 100, caId: caList[0]?.id || '', statut: 'active',
-    dateDebut: '', dateFin: '',
+    heuresPrevues: '', montantHT: '', probabilite: 100,
+    caId: isCA ? session.id : (caList[0]?.id || ''),
+    statut: 'active', dateDebut: '', dateFin: '',
     ...(affaire || {}),
+    // CA ne peut pas changer le caId, même en édition
+    ...(isCA ? { caId: session.id } : {}),
   })
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -81,13 +87,15 @@ export default function AffaireForm({ affaire, onClose }) {
               <input type="date" className="input-dark w-full" value={form.dateFin} onChange={e => set('dateFin', e.target.value)} />
             </div>
           </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1 font-medium">Chargé d'affaire</label>
-            <select className="input-dark w-full" value={form.caId} onChange={e => set('caId', e.target.value)}>
-              <option value="">— Aucun —</option>
-              {caList.map(ca => <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom}</option>)}
-            </select>
-          </div>
+          {!isCA && (
+            <div>
+              <label className="block text-xs text-slate-500 mb-1 font-medium">Chargé d'affaire</label>
+              <select className="input-dark w-full" value={form.caId} onChange={e => set('caId', e.target.value)}>
+                <option value="">— Aucun —</option>
+                {caList.map(ca => <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex justify-end gap-3 pt-1">
             <button type="button" onClick={onClose} className="btn-ghost">Annuler</button>
             <button type="submit" className="btn-primary">Enregistrer</button>

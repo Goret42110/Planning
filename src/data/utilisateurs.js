@@ -14,7 +14,7 @@ export const utilisateurs = [
   { id: 'ene_09',  prenom: 'Olivier',   nom: 'PALHEC',            identifiant: 'opalhec',            motDePasse: '123456', role: 'technicien',  serviceId: 'energie'   },
   { id: 'ene_10',  prenom: 'Maïlys',   nom: 'RHOER',             identifiant: 'mrhoer',             motDePasse: '123456', role: 'technicien',  serviceId: 'energie'   },
   { id: 'ene_11',  prenom: 'Jérôme',   nom: 'VAZILLE',           identifiant: 'jvazille',           motDePasse: '123456', role: 'technicien',  serviceId: 'energie'   },
-  { id: 'ene_12',  prenom: 'Yann',      nom: 'VICTORINO',         identifiant: 'yvictorino',         motDePasse: '123456', role: 'responsable', serviceId: 'energie'   },
+  { id: 'ene_12',  prenom: 'Yann',      nom: 'VICTORINO',         identifiant: 'yvictorino',         motDePasse: '123456', role: 'ca',          serviceId: 'energie'   },
 
   // ── Pétrole ────────────────────────────────────────────────────────────────
   { id: 'pet_01',  prenom: 'Christian', nom: 'CHAPELON',          identifiant: 'cchapelon',          motDePasse: '123456', role: 'technicien',  serviceId: 'petrole'   },

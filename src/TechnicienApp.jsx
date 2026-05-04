@@ -653,7 +653,7 @@ function printTimesheet(person, year, week, days, planning, timesheets, affaires
 }
 
 // ─── Main TechnicienApp ───────────────────────────────────────────────────────
-export default function TechnicienApp({ forcedPersonId }) {
+export default function TechnicienApp({ forcedPersonId, onLogout }) {
   const appData = useAppData()
   const { personnel, affaires, planning, comments, timesheets, setComment, setTimesheetDay, setPlanningCell } = appData
 
@@ -678,6 +678,7 @@ export default function TechnicienApp({ forcedPersonId }) {
     setWeek(curWeek)
   }
   function logout() {
+    if (onLogout) { onLogout(); return }
     setPersonId('')
     sessionStorage.removeItem('tech_id')
   }
