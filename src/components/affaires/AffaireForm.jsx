@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../../App'
 
-const STATUTS = ['active', 'en attente', 'terminée']
+const STATUTS = ['active', 'en attente', 'terminée', 'perdue']
 
 export default function AffaireForm({ affaire, onClose }) {
   const { personnel, addAffaire, updateAffaire } = useApp()
