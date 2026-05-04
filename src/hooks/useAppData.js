@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { INITIAL_PERSONNEL, INITIAL_AFFAIRES, INITIAL_PLANNING } from '../data/initial';
 
 const STORAGE_KEY = 'els_planning_data';
+const DATA_VERSION = 2;
 
 function genId() {
   return `id_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -10,7 +11,11 @@ function genId() {
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed._version !== DATA_VERSION) return null;
+      return parsed;
+    }
   } catch {}
   return null;
 }
@@ -23,7 +28,7 @@ export function useAppData() {
   });
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, _version: DATA_VERSION })); } catch {}
   }, [data]);
 
   // Sync changes made in another tab (e.g. technician page → admin page)
