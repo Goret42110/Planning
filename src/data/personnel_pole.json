@@ -1,0 +1,41 @@
+{
+  "services": [
+    {
+      "id": "direction",
+      "nom": "Direction",
+      "employes": [
+        { "id": "resp_07", "nom": "PERRET", "prenom": "Arthur" }
+      ]
+    },
+    {
+      "id": "energie",
+      "nom": "Energie",
+      "employes": [
+        { "id": "ene_01", "nom": "BARDOTTI",          "prenom": "Fabien"    },
+        { "id": "ene_02", "nom": "BONY",               "prenom": "Arnaud"   },
+        { "id": "ene_03", "nom": "DELOLME",            "prenom": "Sébastien" },
+        { "id": "ene_04", "nom": "FEROULI",            "prenom": "Charles"  },
+        { "id": "ene_05", "nom": "GRANGE",             "prenom": "Lucas"    },
+        { "id": "ene_06", "nom": "GRAVIERE",           "prenom": "David"    },
+        { "id": "ene_07", "nom": "LEFEBVRE CALMELS",   "prenom": "Eliam"    },
+        { "id": "ene_08", "nom": "MEYNARD",            "prenom": "Matthis"  },
+        { "id": "ene_09", "nom": "PALHEC",             "prenom": "Olivier"  },
+        { "id": "ene_10", "nom": "RHOER",              "prenom": "Maïlys"  },
+        { "id": "ene_11", "nom": "VAZILLE",            "prenom": "Jérôme"  },
+        { "id": "ene_12", "nom": "VICTORINO",          "prenom": "Yann"     }
+      ]
+    },
+    {
+      "id": "petrole",
+      "nom": "Pétrole",
+      "employes": [
+        { "id": "pet_01", "nom": "CHAPELON",  "prenom": "Christian" },
+        { "id": "pet_02", "nom": "COLOMBET",  "prenom": "Yohann"    },
+        { "id": "pet_03", "nom": "JAROUSSE",  "prenom": "Loris"     },
+        { "id": "pet_04", "nom": "REDON",     "prenom": "Nicolas"   },
+        { "id": "pet_05", "nom": "SARIER",    "prenom": "Hamza"     },
+        { "id": "pet_06", "nom": "YEGIN",     "prenom": "Yasar"     }
+      ]
+    }
+  ]
+}

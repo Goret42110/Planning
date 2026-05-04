@@ -1,16 +1,18 @@
-const TABS = [
-  { id: 'planning',  label: 'Planning' },
-  { id: 'personnel', label: 'Personnel' },
-  { id: 'affaires',  label: 'Affaires' },
-  { id: 'charge',    label: 'Charge globale' },
-  { id: 'recap',     label: 'Récap' },
-  { id: 'recapheures', label: '⏱ Heures' },
+const ALL_TABS = [
+  { id: 'planning',     label: 'Planning'      },
+  { id: 'personnel',    label: 'Personnel'     },
+  { id: 'affaires',     label: 'Affaires'      },
+  { id: 'charge',       label: 'Charge globale' },
+  { id: 'recap',        label: 'Récap'         },
+  { id: 'recapheures',  label: '⏱ Heures'     },
 ]
 
-export default function TabNav({ activeTab, setActiveTab }) {
+export default function TabNav({ activeTab, setActiveTab, allowedTabs }) {
+  const tabs = allowedTabs ? ALL_TABS.filter(t => allowedTabs.includes(t.id)) : ALL_TABS
+
   return (
     <nav className="bg-white border-b border-slate-200 px-4 flex shrink-0 shadow-sm">
-      {TABS.map(tab => (
+      {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}

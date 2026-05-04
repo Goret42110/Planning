@@ -653,11 +653,11 @@ function printTimesheet(person, year, week, days, planning, timesheets, affaires
 }
 
 // ─── Main TechnicienApp ───────────────────────────────────────────────────────
-export default function TechnicienApp() {
+export default function TechnicienApp({ forcedPersonId }) {
   const appData = useAppData()
   const { personnel, affaires, planning, comments, timesheets, setComment, setTimesheetDay, setPlanningCell } = appData
 
-  const [personId, setPersonId] = useState(() => sessionStorage.getItem('tech_id') || '')
+  const [personId, setPersonId] = useState(() => forcedPersonId || sessionStorage.getItem('tech_id') || '')
   const [tab,      setTab]      = useState('planning')
 
   const { week: curWeek, year: curYear } = getCurrentWeekInfo()
@@ -685,8 +685,8 @@ export default function TechnicienApp() {
   function nextWeek() { const r = addWeeks(year, week,  1); setYear(r.year); setWeek(r.week) }
   function goToday()  { setYear(curYear); setWeek(curWeek) }
 
-  // ── Login screen ──────────────────────────────────────────────────────────
-  if (!person) {
+  // ── Login screen — uniquement pour accès direct via technicien.html ─────────
+  if (!person && !forcedPersonId) {
     const plannable = personnel.filter(p => p.actif !== false && p.role !== 'CA' && p.role !== 'RS')
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
@@ -721,6 +721,14 @@ export default function TechnicienApp() {
         <p className="mt-6 text-xs text-slate-400">
           Accès admin : <a href="/" className="underline hover:text-blue-500">Planning ELS</a>
         </p>
+      </div>
+    )
+  }
+
+  if (!person) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">
+        Chargement…
       </div>
     )
   }
