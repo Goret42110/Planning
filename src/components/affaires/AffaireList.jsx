@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../../App'
+import { useAuth } from '../../context/AuthContext'
 import { getAffaireColor } from '../../utils/colors'
 import AffaireForm from './AffaireForm'
 
@@ -20,6 +21,8 @@ const FILTRES = [
 
 export default function AffaireList() {
   const { affaires, personnel, deleteAffaire, selectedCA } = useApp()
+  const { session } = useAuth()
+  const isAdmin = session?.role === 'responsable'
   const [search, setSearch]     = useState('')
   const [filtre, setFiltre]     = useState('all')
   const [editing, setEditing]   = useState(null)
@@ -85,7 +88,7 @@ export default function AffaireList() {
               </div>
               <div className="text-right shrink-0 space-y-0.5">
                 <div className="text-amber-600 text-sm font-medium">{getCAName(a.caId)}</div>
-                {a.montantHT > 0 && <div className="text-slate-700 text-xs font-semibold">{Number(a.montantHT).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>}
+                {isAdmin && a.montantHT > 0 && <div className="text-slate-700 text-xs font-semibold">{Number(a.montantHT).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>}
                 {a.probabilite != null && (
                   <div className={`text-xs font-bold px-1.5 py-0.5 rounded inline-block ${a.probabilite === 100 ? 'bg-green-100 text-green-700' : a.probabilite >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
                     {a.probabilite}%

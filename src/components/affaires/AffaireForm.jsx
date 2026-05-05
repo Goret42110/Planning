@@ -7,7 +7,7 @@ const STATUTS = ['active', 'en attente', 'terminée', 'perdue']
 export default function AffaireForm({ affaire, onClose }) {
   const { personnel, addAffaire, updateAffaire } = useApp()
   const { session } = useAuth()
-  const caList = personnel.filter(p => p.role === 'CA' && p.actif)
+  const caList = personnel.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif)
   const isCA = session?.role === 'ca'
 
   const [form, setForm] = useState({

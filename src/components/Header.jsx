@@ -13,7 +13,7 @@ export default function Header() {
   const { personnel, selectedCA, setSelectedCA } = useApp()
   const navigate = useNavigate()
 
-  const cas = personnel.filter(p => p.role === 'CA' && p.actif)
+  const cas = personnel.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif)
   const roleInfo = ROLE_LABELS[session?.role] ?? ROLE_LABELS.technicien
 
   function handleLogout() {
