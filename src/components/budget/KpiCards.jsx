@@ -54,11 +54,11 @@ export default function KpiCards({ kpis, objectifAnnuelCA }) {
       />
       <KpiCard
         label="Charge prévis."
-        value={`${Math.round(chargePrevue)} h`}
-        icon="⚙️"
+        value={`${(chargePrevue / 176).toFixed(1)} pers.`}
+        icon="👷"
         colorClass="text-violet-600"
         bgClass="bg-violet-50"
-        sub="heures pondérées"
+        sub={`${Math.round(chargePrevue)} h · base 176h/pers.`}
       />
       <KpiCard
         label="Atteinte objectif"
