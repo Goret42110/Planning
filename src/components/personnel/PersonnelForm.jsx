@@ -6,6 +6,10 @@ const QUALIFS_INT  = ['INT','EL','AP','CE','Stagiaire']
 const QUALIFS_SST  = ['CE','AP','EL','SGT','Stagiaire']
 const ROLES        = ['RS','CA','TECH']
 const TYPES        = ['ELS','Intérimaire','Sous-traitant']
+const SERVICES     = [
+  { id: 'energie', nom: 'Energie' },
+  { id: 'petrole', nom: 'Pétrole' },
+]
 
 function getQualifs(type) {
   if (type === 'Intérimaire')   return QUALIFS_INT
@@ -17,6 +21,7 @@ export default function PersonnelForm({ person, onClose }) {
   const { addPerson, updatePerson } = useApp()
   const [form, setForm] = useState({
     nom: '', prenom: '', type: 'ELS', qualification: 'EL', role: 'TECH', societe: '', actif: true,
+    service: 'Energie', serviceId: 'energie',
     ...(person || {}),
   })
 
@@ -53,6 +58,22 @@ export default function PersonnelForm({ person, onClose }) {
             <div>
               <label className="block text-xs text-slate-500 mb-1 font-medium">Nom *</label>
               <input className="input-dark w-full" value={form.nom} onChange={e => set('nom', e.target.value)} placeholder="VICTORINO" required />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1 font-medium">Service</label>
+            <div className="flex gap-2">
+              {SERVICES.map(s => (
+                <button key={s.id} type="button"
+                  onClick={() => setForm(f => ({ ...f, service: s.nom, serviceId: s.id }))}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    form.serviceId === s.id
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                  }`}>
+                  {s.nom}
+                </button>
+              ))}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
