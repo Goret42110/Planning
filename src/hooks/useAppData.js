@@ -39,19 +39,34 @@ export function useAppData() {
   const syncedRef  = useRef(false);   // vrai après le premier chargement Supabase
   const saveTimer  = useRef(null);    // debounce des sauvegardes
 
-  // ── Chargement initial depuis Supabase ──────────────────────────────────────
+  // ── Chargement initial depuis Supabase (timeout 4s pour ne pas bloquer) ─────
   useEffect(() => {
-    getItem(STORAGE_KEY).then(remote => {
-      if (remote) {
-        const merged = fromRaw(remote);
-        if (merged) {
-          setData(merged);
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...merged, _version: DATA_VERSION })); } catch {}
+    let done = false
+    const fallback = setTimeout(() => {
+      if (!done) { done = true; syncedRef.current = true; setSyncing(false) }
+    }, 4000)
+
+    getItem(STORAGE_KEY)
+      .then(remote => {
+        if (!done) {
+          done = true
+          clearTimeout(fallback)
+          if (remote) {
+            const merged = fromRaw(remote)
+            if (merged) {
+              setData(merged)
+              try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...merged, _version: DATA_VERSION })) } catch {}
+            }
+          }
+          syncedRef.current = true
+          setSyncing(false)
         }
-      }
-      syncedRef.current = true;
-      setSyncing(false);
-    });
+      })
+      .catch(() => {
+        if (!done) { done = true; clearTimeout(fallback); syncedRef.current = true; setSyncing(false) }
+      })
+
+    return () => { done = true; clearTimeout(fallback) }
   }, []);
 
   // ── Sauvegarde locale + Supabase à chaque changement (debounce 800 ms) ──────
