@@ -13,94 +13,68 @@ import TaskPlanner from './TaskPlanner'
 const WEEK_COUNT = 6
 const PERSON_COL_W = 195
 
-function AffaireFilter({ affaires, selected, onChange }) {
-  const [open, setOpen]     = useState(false)
-  const [search, setSearch] = useState('')
+function AffaireSearchBar({ affaires, value, onChange }) {
+  const [suggestions, setSuggestions] = useState([])
+  const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') } }
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const toggle = (id) =>
-    onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
+  function handleInput(v) {
+    onChange(v)
+    if (!v.trim()) { setSuggestions([]); setOpen(false); return }
+    const q = v.trim().toLowerCase()
+    const found = affaires.filter(a =>
+      a.numero.toLowerCase().includes(q) ||
+      a.intitule.toLowerCase().includes(q) ||
+      (a.client || '').toLowerCase().includes(q)
+    ).slice(0, 8)
+    setSuggestions(found)
+    setOpen(found.length > 0)
+  }
 
-  const q = search.trim().toLowerCase()
-  const visible = q
-    ? affaires.filter(a =>
-        a.numero.toLowerCase().includes(q) ||
-        a.intitule.toLowerCase().includes(q) ||
-        (a.client || '').toLowerCase().includes(q)
-      )
-    : affaires
+  function select(a) {
+    onChange(a.numero)
+    setSuggestions([])
+    setOpen(false)
+  }
 
-  const label = selected.length === 0
-    ? 'Filtrer par affaire'
-    : selected.length === 1
-      ? (affaires.find(a => a.id === selected[0])?.numero ?? '1 affaire')
-      : `${selected.length} affaires`
+  function clear() { onChange(''); setSuggestions([]); setOpen(false) }
 
   return (
     <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-          selected.length > 0
-            ? 'bg-blue-50 border-blue-300 text-blue-700'
-            : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
-        }`}
-      >
-        <span className="text-slate-400">🔍</span>
-        <span>{label}</span>
-        {selected.length > 0 && (
-          <span onClick={e => { e.stopPropagation(); onChange([]) }}
-            className="ml-1 text-blue-400 hover:text-blue-700 font-bold">✕</span>
+      <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 bg-white transition-colors ${value ? 'border-blue-400 bg-blue-50' : 'border-slate-200'}`}>
+        <span className="text-slate-400 text-xs">🔍</span>
+        <input
+          value={value}
+          onChange={e => handleInput(e.target.value)}
+          onFocus={() => value && suggestions.length && setOpen(true)}
+          placeholder="Filtrer par affaire…"
+          className="text-xs bg-transparent focus:outline-none text-slate-700 placeholder-slate-400 w-44"
+        />
+        {value && (
+          <button onClick={clear} className="text-slate-400 hover:text-slate-700 text-xs leading-none">✕</button>
         )}
-      </button>
-
+      </div>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl w-72 flex flex-col" style={{ maxHeight: 400 }}>
-          {/* Barre de recherche */}
-          <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
-            <input
-              autoFocus
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="N° affaire, intitulé, client…"
-              className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-400 bg-slate-50"
-            />
-            {selected.length > 0 && (
-              <button onClick={() => onChange([])} className="mt-1.5 text-xs text-slate-400 hover:text-red-500">
-                Effacer la sélection ({selected.length})
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl w-72 py-1 overflow-hidden">
+          {suggestions.map(a => {
+            const c = getAffaireColor(a.colorIndex)
+            return (
+              <button key={a.id} onClick={() => select(a)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50 text-left transition-colors">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.border }} />
+                <div className="min-w-0">
+                  <div className="font-mono text-xs font-bold text-slate-800">{a.numero}</div>
+                  <div className="text-slate-400 text-xs truncate">{a.intitule}</div>
+                </div>
               </button>
-            )}
-          </div>
-
-          {/* Liste scrollable */}
-          <div className="overflow-y-auto py-1">
-            {visible.length === 0 && (
-              <p className="text-xs text-slate-400 px-4 py-3 italic">Aucun résultat</p>
-            )}
-            {visible.map(a => {
-              const c = getAffaireColor(a.colorIndex)
-              const checked = selected.includes(a.id)
-              return (
-                <button key={a.id} onClick={() => toggle(a.id)}
-                  className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-50 transition-colors text-left">
-                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? 'border-blue-500 bg-blue-600' : 'border-slate-200'}`}>
-                    {checked && <span className="text-white text-xs leading-none">✓</span>}
-                  </span>
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.border }} />
-                  <div className="min-w-0">
-                    <div className="font-mono text-xs font-semibold text-slate-800">{a.numero}</div>
-                    <div className="text-slate-400 text-xs truncate">{a.intitule}</div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -112,8 +86,8 @@ export default function PlanningGrid() {
 
   const cur = getCurrentWeekInfo()
   const [nav, setNav]               = useState({ week: cur.week, year: cur.year })
-  const [editor, setEditor]         = useState(null)
-  const [affaireFilter, setAffaireFilter] = useState([])
+  const [editor, setEditor]               = useState(null)
+  const [affaireSearch, setAffaireSearch] = useState('')
   const [showPlanner, setShowPlanner]     = useState(false)
 
   const weeks = []
@@ -144,12 +118,18 @@ export default function PlanningGrid() {
       )
       if (!hasAny) return false
     }
-    if (affaireFilter.length > 0) {
-      const hasAny = columns.some(col => {
-        const k = planningKey(p.id, col.year, col.week, col.dayIndex)
-        return getCellSlots(planning[k]).some(s => affaireFilter.includes(s.id))
-      })
-      if (!hasAny) return false
+    if (affaireSearch.trim()) {
+      const q = affaireSearch.trim().toLowerCase()
+      const matchedIds = affaires
+        .filter(a => a.numero.toLowerCase().includes(q) || a.intitule.toLowerCase().includes(q) || (a.client || '').toLowerCase().includes(q))
+        .map(a => a.id)
+      if (matchedIds.length > 0) {
+        const hasAny = columns.some(col => {
+          const k = planningKey(p.id, col.year, col.week, col.dayIndex)
+          return getCellSlots(planning[k]).some(s => matchedIds.includes(s.id))
+        })
+        if (!hasAny) return false
+      }
     }
     return true
   })
@@ -249,11 +229,11 @@ export default function PlanningGrid() {
           </button>
         </div>
 
-        {/* Affaire filter */}
-        <AffaireFilter
-          affaires={affaires.filter(a => a.statut === 'active' && (!selectedCA || a.caId === selectedCA))}
-          selected={affaireFilter}
-          onChange={setAffaireFilter}
+        {/* Barre recherche affaire */}
+        <AffaireSearchBar
+          affaires={affaires.filter(a => !selectedCA || a.caId === selectedCA)}
+          value={affaireSearch}
+          onChange={setAffaireSearch}
         />
       </div>
 

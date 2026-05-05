@@ -24,7 +24,12 @@ export function useAppData() {
   const [data, setData] = useState(() => {
     const saved = load();
     const base = { personnel: INITIAL_PERSONNEL, affaires: INITIAL_AFFAIRES, planning: INITIAL_PLANNING, comments: {}, timesheets: {} };
-    return saved ? { comments: {}, timesheets: {}, ...saved } : base;
+    if (!saved) return base;
+    const merged = { comments: {}, timesheets: {}, ...saved };
+    // Auto-réparation : si les affaires ont été vidées par l'admin, restaurer depuis INITIAL
+    if (!merged.affaires?.length && INITIAL_AFFAIRES.length > 0) merged.affaires = INITIAL_AFFAIRES;
+    if (!merged.personnel?.length && INITIAL_PERSONNEL.length > 0) merged.personnel = INITIAL_PERSONNEL;
+    return merged;
   });
 
   useEffect(() => {

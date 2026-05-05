@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
-import { INITIAL_PERSONNEL } from '../data/initial'
+import { INITIAL_PERSONNEL, INITIAL_AFFAIRES } from '../data/initial'
 
 const LS_DATA_KEY  = 'els_planning_data'
 const LS_USERS_KEY = 'els_utilisateurs'
@@ -48,9 +48,11 @@ function saveUsers(users) {
 function savePersonnelField(id, updates) {
   try {
     const raw = localStorage.getItem(LS_DATA_KEY)
-    const d   = raw ? JSON.parse(raw) : { _version: DATA_VERSION, affaires: [], planning: {}, comments: {}, timesheets: {} }
-    if (!d._version) d._version = DATA_VERSION
-    if (!d.personnel) d.personnel = INITIAL_PERSONNEL
+    const d   = raw ? JSON.parse(raw) : {}
+    if (!d._version)  d._version  = DATA_VERSION
+    if (!d.personnel?.length) d.personnel = INITIAL_PERSONNEL
+    if (!d.affaires?.length)  d.affaires  = INITIAL_AFFAIRES
+    if (!d.planning)  d.planning  = {}
     d.personnel = d.personnel.map(p => p.id === id ? { ...p, ...updates } : p)
     localStorage.setItem(LS_DATA_KEY, JSON.stringify(d))
   } catch {}
