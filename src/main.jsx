@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import TechnicienRoute from './components/TechnicienRoute.jsx'
+import CAMobileRoute from './components/ca/CAMobileRoute.jsx'
 import './index.css'
 
 function RoleRedirect() {
@@ -30,6 +31,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
           <Route element={<ProtectedRoute roles={['responsable']} />}>
             <Route path="/admin" element={<AdminPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute roles={['ca', 'responsable']} />}>
+            <Route path="/ca" element={<CAMobileRoute />} />
           </Route>
 
           <Route element={<ProtectedRoute roles={['technicien', 'responsable']} />}>

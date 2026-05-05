@@ -83,6 +83,12 @@ export default function Header() {
                 ⚙ Admin
               </Link>
             )}
+            {session?.role === 'ca' && (
+              <Link to="/ca"
+                className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors">
+                📱 Mobile
+              </Link>
+            )}
             <button
               onClick={handleLogout}
               className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
