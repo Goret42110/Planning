@@ -97,6 +97,20 @@ export default function AdminPage() {
     setSaved(true)
   }
 
+  function updateIdentifiant(id, identifiant) {
+    const val = identifiant.trim().toLowerCase().replace(/\s+/g, '')
+    if (!val) return
+    const taken = users.some(u => u.id !== id && u.identifiant === val)
+    if (taken) return { error: `"${val}" est déjà utilisé` }
+    setUsers(prev => {
+      const next = prev.map(u => u.id === id ? { ...u, identifiant: val } : u)
+      saveUsers(next)
+      return next
+    })
+    setSaved(true)
+    return null
+  }
+
   function updatePassword(id, pwd) {
     if (!pwd.trim()) return
     setUsers(prev => {
@@ -217,6 +231,7 @@ export default function AdminPage() {
                           <PersonnelRow key={person.id}
                             person={person} user={user} role={role} isLast={isLast}
                             onRoleChange={r => updateAuthRole(person, r)}
+                            onIdentifiantChange={val => updateIdentifiant(person.id, val)}
                             onPasswordChange={pwd => updatePassword(person.id, pwd)}
                             onPlanningChange={(field, val) => updatePlanningField(person.id, field, val)}
                           />
@@ -228,6 +243,7 @@ export default function AdminPage() {
                         <AuthOnlyRow key={user.id} user={user}
                           isLast={i === svcAuthOnly.length - 1}
                           onRoleChange={r => updateAuthRole({ id: user.id, prenom: user.prenom, nom: user.nom }, r)}
+                          onIdentifiantChange={val => updateIdentifiant(user.id, val)}
                           onPasswordChange={pwd => updatePassword(user.id, pwd)}
                         />
                       ))}
@@ -244,7 +260,7 @@ export default function AdminPage() {
 }
 
 // ── Ligne personnel planning ──────────────────────────────────────────────────
-function PersonnelRow({ person, user, role, isLast, onRoleChange, onPasswordChange, onPlanningChange }) {
+function PersonnelRow({ person, user, role, isLast, onRoleChange, onIdentifiantChange, onPasswordChange, onPlanningChange }) {
   return (
     <tr className={`${!isLast ? 'border-b border-slate-100' : ''} hover:bg-slate-50`}>
       {/* Nom */}
@@ -278,8 +294,8 @@ function PersonnelRow({ person, user, role, isLast, onRoleChange, onPasswordChan
       {/* Identifiant */}
       <td className="px-4 py-3">
         {user
-          ? <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{user.identifiant}</span>
-          : <span className="text-xs text-slate-300 italic">— (auto à la création)</span>
+          ? <IdentifiantCell value={user.identifiant} onSave={onIdentifiantChange} />
+          : <span className="text-xs text-slate-300 italic">auto à la création</span>
         }
       </td>
 
@@ -317,7 +333,7 @@ function PersonnelRow({ person, user, role, isLast, onRoleChange, onPasswordChan
 }
 
 // ── Ligne utilisateur auth-only (ex: resp_07 sans fiche planning) ─────────────
-function AuthOnlyRow({ user, isLast, onRoleChange, onPasswordChange }) {
+function AuthOnlyRow({ user, isLast, onRoleChange, onIdentifiantChange, onPasswordChange }) {
   return (
     <tr className={`${!isLast ? 'border-b border-slate-100' : ''} hover:bg-slate-50 bg-blue-50/30`}>
       <td className="px-4 py-3">
@@ -340,13 +356,54 @@ function AuthOnlyRow({ user, isLast, onRoleChange, onPasswordChange }) {
         </select>
       </td>
       <td className="px-4 py-3">
-        <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{user.identifiant}</span>
+        <IdentifiantCell value={user.identifiant} onSave={onIdentifiantChange} />
       </td>
       <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
       <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
       <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
       <td className="px-4 py-3"><PasswordCell onSave={onPasswordChange} /></td>
     </tr>
+  )
+}
+
+// ── Cellule identifiant éditable ──────────────────────────────────────────────
+function IdentifiantCell({ value, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal]         = useState(value)
+  const [error, setError]     = useState('')
+
+  function handleSave() {
+    const result = onSave(val)
+    if (result?.error) { setError(result.error); return }
+    setError('')
+    setEditing(false)
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter') handleSave()
+    if (e.key === 'Escape') { setVal(value); setEditing(false); setError('') }
+  }
+
+  if (!editing) return (
+    <button onClick={() => { setVal(value); setEditing(true) }}
+      className="font-mono text-xs text-slate-500 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 px-1.5 py-0.5 rounded transition-colors cursor-pointer">
+      {value}
+    </button>
+  )
+
+  return (
+    <div>
+      <div className="flex gap-1 items-center">
+        <input type="text" value={val}
+          onChange={e => { setVal(e.target.value.toLowerCase().replace(/\s/g, '')); setError('') }}
+          onKeyDown={handleKey}
+          autoFocus
+          className="font-mono text-xs border border-blue-400 rounded px-1.5 py-0.5 w-28 focus:outline-none" />
+        <button onClick={handleSave} className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded">✓</button>
+        <button onClick={() => { setEditing(false); setError('') }} className="text-xs text-slate-400 hover:text-slate-600 px-1">✕</button>
+      </div>
+      {error && <div className="text-xs text-red-500 mt-0.5">{error}</div>}
+    </div>
   )
 }
 
