@@ -1,6 +1,12 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../App'
+import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
+
+function getAuthUsers() {
+  try { const s = localStorage.getItem('els_utilisateurs'); if (s) return JSON.parse(s) } catch {}
+  return BASE_USERS
+}
 
 const ROLE_LABELS = {
   responsable: { label: 'Responsable', cls: 'bg-blue-900 text-blue-200 border-blue-700' },
@@ -13,7 +19,11 @@ export default function Header() {
   const { personnel, selectedCA, setSelectedCA } = useApp()
   const navigate = useNavigate()
 
-  const cas = personnel.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif)
+  const planningCAs = personnel.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif)
+  const authResp    = getAuthUsers()
+    .filter(u => u.role === 'responsable' && !personnel.find(p => p.id === u.id))
+    .map(u => ({ id: u.id, prenom: u.prenom, nom: u.nom }))
+  const cas = [...planningCAs, ...authResp]
   const roleInfo = ROLE_LABELS[session?.role] ?? ROLE_LABELS.technicien
 
   function handleLogout() {

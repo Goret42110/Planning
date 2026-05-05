@@ -3,6 +3,12 @@ import { useApp } from '../../App'
 import { useAuth } from '../../context/AuthContext'
 import { getAffaireColor } from '../../utils/colors'
 import AffaireForm from './AffaireForm'
+import { utilisateurs as BASE_USERS } from '../../data/utilisateurs'
+
+function getAuthUsers() {
+  try { const s = localStorage.getItem('els_utilisateurs'); if (s) return JSON.parse(s) } catch {}
+  return BASE_USERS
+}
 
 const STATUT_CLS = {
   'active':     'bg-green-100 text-green-700 border border-green-300',
@@ -38,7 +44,9 @@ export default function AffaireList() {
 
   const getCAName = (caId) => {
     const ca = personnel.find(p => p.id === caId)
-    return ca ? `${ca.prenom} ${ca.nom}` : '—'
+    if (ca) return `${ca.prenom} ${ca.nom}`
+    const authUser = getAuthUsers().find(u => u.id === caId)
+    return authUser ? `${authUser.prenom} ${authUser.nom}` : '—'
   }
 
   const countByStatut = (s) => affaires.filter(a => (!selectedCA || a.caId === selectedCA) && a.statut === s).length

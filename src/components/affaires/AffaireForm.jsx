@@ -1,14 +1,27 @@
 import { useState } from 'react'
 import { useApp } from '../../App'
 import { useAuth } from '../../context/AuthContext'
+import { utilisateurs as BASE_USERS } from '../../data/utilisateurs'
 
 const STATUTS = ['active', 'en attente', 'terminée', 'perdue']
+
+function getAuthUsers() {
+  try { const s = localStorage.getItem('els_utilisateurs'); if (s) return JSON.parse(s) } catch {}
+  return BASE_USERS
+}
 
 export default function AffaireForm({ affaire, onClose }) {
   const { personnel, addAffaire, updateAffaire } = useApp()
   const { session } = useAuth()
-  const caList = personnel.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif)
-  const isCA = session?.role === 'ca'
+  const isCA    = session?.role === 'ca'
+  const isAdmin = session?.role === 'responsable'
+
+  // CA et RS du planning + responsables auth qui n'ont pas de fiche planning
+  const planningCA = personnel.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif)
+  const authResp   = getAuthUsers()
+    .filter(u => u.role === 'responsable' && !personnel.find(p => p.id === u.id))
+    .map(u => ({ id: u.id, prenom: u.prenom, nom: u.nom }))
+  const caList = [...planningCA, ...authResp]
 
   const [form, setForm] = useState({
     numero: '', intitule: '', client: '', adresse: '',
@@ -16,7 +29,6 @@ export default function AffaireForm({ affaire, onClose }) {
     caId: isCA ? session.id : (caList[0]?.id || ''),
     statut: 'active', dateDebut: '', dateFin: '',
     ...(affaire || {}),
-    // CA ne peut pas changer le caId, même en édition
     ...(isCA ? { caId: session.id } : {}),
   })
 
@@ -57,11 +69,15 @@ export default function AffaireForm({ affaire, onClose }) {
             <label className="block text-xs text-slate-500 mb-1 font-medium">Client</label>
             <input className="input-dark w-full" value={form.client} onChange={e => set('client', e.target.value)} placeholder="SUEZ" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1 font-medium">Montant HT (€)</label>
-              <input type="number" className="input-dark w-full" value={form.montantHT} onChange={e => set('montantHT', e.target.value)} placeholder="50000" />
-            </div>
+
+          {/* Montant visible uniquement pour l'admin */}
+          <div className={`grid gap-3 ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {isAdmin && (
+              <div>
+                <label className="block text-xs text-slate-500 mb-1 font-medium">Montant HT (€)</label>
+                <input type="number" className="input-dark w-full" value={form.montantHT} onChange={e => set('montantHT', e.target.value)} placeholder="50000" />
+              </div>
+            )}
             <div>
               <label className="block text-xs text-slate-500 mb-1 font-medium">Heures prévues</label>
               <input type="number" className="input-dark w-full" value={form.heuresPrevues} onChange={e => set('heuresPrevues', e.target.value)} placeholder="500" />
@@ -73,6 +89,7 @@ export default function AffaireForm({ affaire, onClose }) {
               </select>
             </div>
           </div>
+
           <div>
             <label className="block text-xs text-slate-500 mb-1 font-medium">Adresse</label>
             <input className="input-dark w-full" value={form.adresse} onChange={e => set('adresse', e.target.value)} placeholder="Clermont-Ferrand (63)" />
