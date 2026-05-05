@@ -8,22 +8,28 @@ const LS_DATA_KEY  = 'els_planning_data'
 const LS_USERS_KEY = 'els_utilisateurs'
 const DATA_VERSION = 4
 
-const AUTH_ROLES     = ['responsable', 'ca', 'technicien']
+const AUTH_ROLES     = ['aucun', 'responsable', 'ca', 'technicien']
 const PLANNING_ROLES = ['CA', 'TECH', 'RS']
 const TYPES          = ['ELS', 'Intérimaire', 'Sous-traitant']
 
-const AUTH_ROLE_LABELS = { responsable: 'Responsable', ca: 'CA', technicien: 'Technicien' }
+const AUTH_ROLE_LABELS = { aucun: 'Aucun accès', responsable: 'Responsable', ca: 'CA', technicien: 'Technicien' }
 const AUTH_ROLE_CLS    = {
+  aucun:       'bg-slate-100 text-slate-400',
   responsable: 'bg-blue-100 text-blue-700',
   ca:          'bg-amber-100 text-amber-700',
-  technicien:  'bg-slate-100 text-slate-600',
+  technicien:  'bg-green-100 text-green-700',
+}
+
+// ── Utilitaires ───────────────────────────────────────────────────────────────
+function toSlug(str = '') {
+  return str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z]/g, '')
+}
+function genIdentifiant(prenom, nom) {
+  return (toSlug(prenom)[0] || '') + toSlug(nom)
 }
 
 function loadUsers() {
-  try {
-    const s = localStorage.getItem(LS_USERS_KEY)
-    if (s) return JSON.parse(s)
-  } catch {}
+  try { const s = localStorage.getItem(LS_USERS_KEY); if (s) return JSON.parse(s) } catch {}
   return BASE_USERS
 }
 
@@ -50,20 +56,41 @@ function savePersonnelField(id, updates) {
   } catch {}
 }
 
+// ── Composant principal ───────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { logout } = useAuth()
-  const navigate   = useNavigate()
+  const { logout }  = useAuth()
+  const navigate    = useNavigate()
 
   const [users,     setUsers]     = useState(loadUsers)
   const [personnel, setPersonnel] = useState(loadPersonnel)
   const [saved,     setSaved]     = useState(false)
   const [search,    setSearch]    = useState('')
 
-  function getPerson(id) { return personnel.find(p => p.id === id) }
+  function getUser(id) { return users.find(u => u.id === id) }
 
-  function updateAuthRole(id, role) {
+  // ── Mutations auth ─────────────────────────────────────────────────────────
+  function updateAuthRole(person, role) {
     setUsers(prev => {
-      const next = prev.map(u => u.id === id ? { ...u, role } : u)
+      const exists = prev.find(u => u.id === person.id)
+      let next
+      if (role === 'aucun') {
+        // Retirer l'accès
+        next = prev.filter(u => u.id !== person.id)
+      } else if (exists) {
+        next = prev.map(u => u.id === person.id ? { ...u, role } : u)
+      } else {
+        // Créer un nouvel accès
+        const identifiant = genIdentifiant(person.prenom, person.nom)
+        next = [...prev, {
+          id: person.id,
+          prenom: person.prenom,
+          nom: person.nom,
+          identifiant,
+          motDePasse: '123456',
+          role,
+          serviceId: person.serviceId || 'energie',
+        }]
+      }
       saveUsers(next)
       return next
     })
@@ -80,6 +107,7 @@ export default function AdminPage() {
     setSaved(true)
   }
 
+  // ── Mutations planning ─────────────────────────────────────────────────────
   function updatePlanningField(id, field, value) {
     setPersonnel(prev => {
       const next = prev.map(p => p.id === id ? { ...p, [field]: value } : p)
@@ -91,12 +119,25 @@ export default function AdminPage() {
 
   function handleLogout() { logout(); navigate('/login', { replace: true }) }
 
-  const services = [...new Set(users.map(u => u.serviceId))]
-  const SERVICE_LABELS = { direction: 'Direction', energie: 'Energie', petrole: 'Pétrole' }
+  // ── Données fusionnées ─────────────────────────────────────────────────────
+  // Tout le personnel planning + utilisateurs auth-only (ex : resp_07)
+  const authOnlyUsers = users.filter(u => !personnel.find(p => p.id === u.id))
 
-  const filteredUsers = search.trim()
-    ? users.filter(u => `${u.prenom} ${u.nom}`.toLowerCase().includes(search.toLowerCase()))
-    : users
+  const serviceOrder = ['direction', 'energie', 'petrole']
+  const allServices  = [...new Set([
+    ...authOnlyUsers.map(u => u.serviceId),
+    ...personnel.map(p => p.serviceId || 'energie'),
+  ])].sort((a, b) => serviceOrder.indexOf(a) - serviceOrder.indexOf(b))
+
+  const SERVICE_LABELS = { direction: 'Direction', energie: 'Energie', petrole: 'Pétrole' }
+  const TYPE_LABELS    = { ELS: 'ELS', 'Intérimaire': 'INT', 'Sous-traitant': 'SST' }
+
+  const q = search.trim().toLowerCase()
+
+  function matchSearch(prenom, nom) {
+    if (!q) return true
+    return `${prenom} ${nom}`.toLowerCase().includes(q)
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -110,7 +151,7 @@ export default function AdminPage() {
           </div>
           <div>
             <div className="text-white font-bold text-sm">Administration — ELS Énergie</div>
-            <div className="text-slate-400 text-xs">Gestion des utilisateurs et des droits</div>
+            <div className="text-slate-400 text-xs">Gestion des accès et des informations</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -128,13 +169,13 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto px-6 py-6">
         {saved && (
           <div className="mb-4 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
-            ✓ Modifications enregistrées. Les changements de rôle prennent effet à la prochaine connexion de l'utilisateur.
+            ✓ Modifications enregistrées. Les changements de rôle prennent effet à la prochaine connexion.
           </div>
         )}
 
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-xl font-bold text-slate-900">
-            Utilisateurs <span className="text-slate-400 font-normal text-base ml-1">{users.length}</span>
+            Personnel <span className="text-slate-400 font-normal text-base ml-1">{personnel.length + authOnlyUsers.length}</span>
           </h1>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Rechercher…"
@@ -142,9 +183,11 @@ export default function AdminPage() {
         </div>
 
         <div className="space-y-6">
-          {services.map(svcId => {
-            const svcUsers = filteredUsers.filter(u => u.serviceId === svcId)
-            if (!svcUsers.length) return null
+          {allServices.map(svcId => {
+            const svcPersonnel = personnel.filter(p => (p.serviceId || 'energie') === svcId && matchSearch(p.prenom, p.nom))
+            const svcAuthOnly  = authOnlyUsers.filter(u => u.serviceId === svcId && matchSearch(u.prenom, u.nom))
+            if (!svcPersonnel.length && !svcAuthOnly.length) return null
+
             return (
               <div key={svcId}>
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-1">
@@ -154,97 +197,40 @@ export default function AdminPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 font-medium">
-                        <th className="px-4 py-2.5 w-44">Nom</th>
+                        <th className="px-4 py-2.5">Nom</th>
+                        <th className="px-4 py-2.5 w-14">Type</th>
+                        <th className="px-4 py-2.5 w-36">Accès application</th>
                         <th className="px-4 py-2.5 w-32">Identifiant</th>
-                        <th className="px-4 py-2.5 w-36">Rôle application</th>
                         <th className="px-4 py-2.5 w-28">Rôle planning</th>
                         <th className="px-4 py-2.5 w-28">Qualification</th>
-                        <th className="px-4 py-2.5 w-32">Type</th>
                         <th className="px-4 py-2.5 w-16">Actif</th>
                         <th className="px-4 py-2.5">Mot de passe</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {svcUsers.map((u, i) => {
-                        const person = getPerson(u.id)
+                      {/* Personnel planning */}
+                      {svcPersonnel.map((person, i) => {
+                        const user = getUser(person.id)
+                        const role = user?.role || 'aucun'
+                        const isLast = i === svcPersonnel.length - 1 && !svcAuthOnly.length
                         return (
-                          <tr key={u.id} className={`${i < svcUsers.length - 1 ? 'border-b border-slate-100' : ''} hover:bg-slate-50`}>
-
-                            {/* Nom */}
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
-                                  {(u.prenom || '?')[0]}{(u.nom || '?')[0]}
-                                </div>
-                                <span className="font-medium text-slate-800 text-sm">{u.prenom} {u.nom}</span>
-                              </div>
-                            </td>
-
-                            {/* Identifiant */}
-                            <td className="px-4 py-3">
-                              <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{u.identifiant}</span>
-                            </td>
-
-                            {/* Rôle application */}
-                            <td className="px-4 py-3">
-                              <select value={u.role}
-                                onChange={e => updateAuthRole(u.id, e.target.value)}
-                                className={`text-xs font-medium px-2 py-1 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer ${AUTH_ROLE_CLS[u.role]}`}>
-                                {AUTH_ROLES.map(r => <option key={r} value={r}>{AUTH_ROLE_LABELS[r]}</option>)}
-                              </select>
-                            </td>
-
-                            {/* Rôle planning */}
-                            <td className="px-4 py-3">
-                              {person ? (
-                                <select value={person.role || 'TECH'}
-                                  onChange={e => updatePlanningField(u.id, 'role', e.target.value)}
-                                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-blue-400">
-                                  {PLANNING_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                                </select>
-                              ) : <span className="text-slate-300 text-xs">—</span>}
-                            </td>
-
-                            {/* Qualification */}
-                            <td className="px-4 py-3">
-                              {person ? (
-                                <input
-                                  value={person.qualification || ''}
-                                  onChange={e => updatePlanningField(u.id, 'qualification', e.target.value)}
-                                  placeholder="ex: CE"
-                                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-20 bg-white focus:outline-none focus:border-blue-400"
-                                />
-                              ) : <span className="text-slate-300 text-xs">—</span>}
-                            </td>
-
-                            {/* Type */}
-                            <td className="px-4 py-3">
-                              {person ? (
-                                <select value={person.type || 'ELS'}
-                                  onChange={e => updatePlanningField(u.id, 'type', e.target.value)}
-                                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-blue-400">
-                                  {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                              ) : <span className="text-slate-300 text-xs">—</span>}
-                            </td>
-
-                            {/* Actif */}
-                            <td className="px-4 py-3">
-                              {person ? (
-                                <button onClick={() => updatePlanningField(u.id, 'actif', !person.actif)}
-                                  className={`w-9 h-5 rounded-full transition-colors relative ${person.actif !== false ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${person.actif !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                                </button>
-                              ) : <span className="text-slate-300 text-xs">—</span>}
-                            </td>
-
-                            {/* Mot de passe */}
-                            <td className="px-4 py-3">
-                              <PasswordCell onSave={pwd => updatePassword(u.id, pwd)} />
-                            </td>
-                          </tr>
+                          <PersonnelRow key={person.id}
+                            person={person} user={user} role={role} isLast={isLast}
+                            onRoleChange={r => updateAuthRole(person, r)}
+                            onPasswordChange={pwd => updatePassword(person.id, pwd)}
+                            onPlanningChange={(field, val) => updatePlanningField(person.id, field, val)}
+                          />
                         )
                       })}
+
+                      {/* Utilisateurs auth-only (ex: resp_07) */}
+                      {svcAuthOnly.map((user, i) => (
+                        <AuthOnlyRow key={user.id} user={user}
+                          isLast={i === svcAuthOnly.length - 1}
+                          onRoleChange={r => updateAuthRole({ id: user.id, prenom: user.prenom, nom: user.nom }, r)}
+                          onPasswordChange={pwd => updatePassword(user.id, pwd)}
+                        />
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -257,6 +243,114 @@ export default function AdminPage() {
   )
 }
 
+// ── Ligne personnel planning ──────────────────────────────────────────────────
+function PersonnelRow({ person, user, role, isLast, onRoleChange, onPasswordChange, onPlanningChange }) {
+  return (
+    <tr className={`${!isLast ? 'border-b border-slate-100' : ''} hover:bg-slate-50`}>
+      {/* Nom */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+            {(person.prenom || '?')[0]}{(person.nom || '?')[0]}
+          </div>
+          <span className="font-medium text-slate-800 text-sm">{person.prenom} {person.nom}</span>
+        </div>
+      </td>
+
+      {/* Type */}
+      <td className="px-4 py-3">
+        <select value={person.type || 'ELS'}
+          onChange={e => onPlanningChange('type', e.target.value)}
+          className="text-xs border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:border-blue-400">
+          {['ELS','Intérimaire','Sous-traitant'].map(t => <option key={t} value={t}>{t === 'ELS' ? 'ELS' : t === 'Intérimaire' ? 'INT' : 'SST'}</option>)}
+        </select>
+      </td>
+
+      {/* Accès application */}
+      <td className="px-4 py-3">
+        <select value={role}
+          onChange={e => onRoleChange(e.target.value)}
+          className={`text-xs font-medium px-2 py-1 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer ${AUTH_ROLE_CLS[role] || AUTH_ROLE_CLS.aucun}`}>
+          {AUTH_ROLES.map(r => <option key={r} value={r}>{AUTH_ROLE_LABELS[r]}</option>)}
+        </select>
+      </td>
+
+      {/* Identifiant */}
+      <td className="px-4 py-3">
+        {user
+          ? <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{user.identifiant}</span>
+          : <span className="text-xs text-slate-300 italic">— (auto à la création)</span>
+        }
+      </td>
+
+      {/* Rôle planning */}
+      <td className="px-4 py-3">
+        <select value={person.role || 'TECH'}
+          onChange={e => onPlanningChange('role', e.target.value)}
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-blue-400">
+          {['CA','TECH','RS'].map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </td>
+
+      {/* Qualification */}
+      <td className="px-4 py-3">
+        <input value={person.qualification || ''}
+          onChange={e => onPlanningChange('qualification', e.target.value)}
+          placeholder="CE, EL…"
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-20 bg-white focus:outline-none focus:border-blue-400" />
+      </td>
+
+      {/* Actif */}
+      <td className="px-4 py-3">
+        <button onClick={() => onPlanningChange('actif', !person.actif)}
+          className={`w-9 h-5 rounded-full transition-colors relative ${person.actif !== false ? 'bg-blue-600' : 'bg-slate-300'}`}>
+          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${person.actif !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
+        </button>
+      </td>
+
+      {/* Mot de passe */}
+      <td className="px-4 py-3">
+        {user ? <PasswordCell onSave={onPasswordChange} /> : <span className="text-xs text-slate-300">—</span>}
+      </td>
+    </tr>
+  )
+}
+
+// ── Ligne utilisateur auth-only (ex: resp_07 sans fiche planning) ─────────────
+function AuthOnlyRow({ user, isLast, onRoleChange, onPasswordChange }) {
+  return (
+    <tr className={`${!isLast ? 'border-b border-slate-100' : ''} hover:bg-slate-50 bg-blue-50/30`}>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs shrink-0">
+            {(user.prenom || '?')[0]}{(user.nom || '?')[0]}
+          </div>
+          <div>
+            <span className="font-medium text-slate-800 text-sm">{user.prenom} {user.nom}</span>
+            <span className="ml-2 text-xs text-slate-400 italic">admin uniquement</span>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
+      <td className="px-4 py-3">
+        <select value={user.role}
+          onChange={e => onRoleChange(e.target.value)}
+          className={`text-xs font-medium px-2 py-1 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer ${AUTH_ROLE_CLS[user.role] || AUTH_ROLE_CLS.aucun}`}>
+          {AUTH_ROLES.map(r => <option key={r} value={r}>{AUTH_ROLE_LABELS[r]}</option>)}
+        </select>
+      </td>
+      <td className="px-4 py-3">
+        <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{user.identifiant}</span>
+      </td>
+      <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
+      <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
+      <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
+      <td className="px-4 py-3"><PasswordCell onSave={onPasswordChange} /></td>
+    </tr>
+  )
+}
+
+// ── Cellule mot de passe ──────────────────────────────────────────────────────
 function PasswordCell({ onSave }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState('')
