@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export async function getItem(key) {
+  if (!supabase) return null
   try {
     const { data, error } = await supabase
       .from('els_storage')
@@ -13,6 +14,7 @@ export async function getItem(key) {
 }
 
 export async function setItem(key, value) {
+  if (!supabase) return
   try {
     await supabase
       .from('els_storage')
@@ -20,16 +22,17 @@ export async function setItem(key, value) {
   } catch {}
 }
 
-// Écoute les changements en temps réel sur une clé
-// Retourne une fonction de désabonnement
 export function subscribeToKey(key, callback) {
-  const channel = supabase
-    .channel(`storage_${key}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'els_storage', filter: `key=eq.${key}` },
-      payload => { if (payload.new?.value) callback(payload.new.value) }
-    )
-    .subscribe()
-  return () => supabase.removeChannel(channel)
+  if (!supabase) return () => {}
+  try {
+    const channel = supabase
+      .channel(`storage_${key}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'els_storage', filter: `key=eq.${key}` },
+        payload => { if (payload.new?.value) callback(payload.new.value) }
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  } catch { return () => {} }
 }
