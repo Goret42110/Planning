@@ -5,6 +5,7 @@ const TABS = [
   { id: 'charge',      label: 'Charge globale' },
   { id: 'recap',       label: 'Récap'          },
   { id: 'recapheures', label: '⏱ Heures'      },
+  { id: 'budget',      label: '📊 Budget'      },
 ]
 
 export default function TabNav({ activeTab, setActiveTab }) {

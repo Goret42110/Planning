@@ -9,6 +9,7 @@ import AffaireList from './components/affaires/AffaireList'
 import ChargeGlobale from './components/charge/ChargeGlobale'
 import RecapDashboard from './components/recap/RecapDashboard'
 import RecapHeures from './components/recap/RecapHeures'
+import BudgetPrevisionnelPage from './pages/BudgetPrevisionnelPage'
 
 export const AppContext = createContext(null)
 export const useApp = () => useContext(AppContext)
@@ -39,6 +40,7 @@ export default function App() {
           {activeTab === 'charge'      && <ChargeGlobale />}
           {activeTab === 'recap'       && <RecapDashboard />}
           {activeTab === 'recapheures' && <RecapHeures />}
+          {activeTab === 'budget'      && <BudgetPrevisionnelPage />}
         </div>
       </div>
     </AppContext.Provider>
