@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { INITIAL_PERSONNEL, INITIAL_AFFAIRES, INITIAL_PLANNING } from '../data/initial';
+import { getItem, setItem, subscribeToKey } from '../lib/supabaseStorage';
 
 const STORAGE_KEY = 'els_planning_data';
 const DATA_VERSION = 4;
@@ -8,48 +9,74 @@ function genId() {
   return `id_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function load() {
+function fromRaw(raw) {
+  if (!raw) return null;
+  const base = { personnel: INITIAL_PERSONNEL, affaires: INITIAL_AFFAIRES, planning: INITIAL_PLANNING, comments: {}, timesheets: {} };
+  const merged = { ...base, comments: {}, timesheets: {}, ...raw };
+  if (!merged.affaires?.length && INITIAL_AFFAIRES.length > 0) merged.affaires = INITIAL_AFFAIRES;
+  if (!merged.personnel?.length && INITIAL_PERSONNEL.length > 0) merged.personnel = INITIAL_PERSONNEL;
+  return merged;
+}
+
+function loadLocal() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed._version !== DATA_VERSION) return null;
-      return parsed;
+      return fromRaw(parsed);
     }
   } catch {}
   return null;
 }
 
 export function useAppData() {
-  const [data, setData] = useState(() => {
-    const saved = load();
-    const base = { personnel: INITIAL_PERSONNEL, affaires: INITIAL_AFFAIRES, planning: INITIAL_PLANNING, comments: {}, timesheets: {} };
-    if (!saved) return base;
-    const merged = { comments: {}, timesheets: {}, ...saved };
-    // Auto-réparation : si les affaires ont été vidées par l'admin, restaurer depuis INITIAL
-    if (!merged.affaires?.length && INITIAL_AFFAIRES.length > 0) merged.affaires = INITIAL_AFFAIRES;
-    if (!merged.personnel?.length && INITIAL_PERSONNEL.length > 0) merged.personnel = INITIAL_PERSONNEL;
-    return merged;
-  });
+  const base = { personnel: INITIAL_PERSONNEL, affaires: INITIAL_AFFAIRES, planning: INITIAL_PLANNING, comments: {}, timesheets: {} };
 
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, _version: DATA_VERSION })); } catch {}
-  }, [data]);
+  const [data, setData]       = useState(() => loadLocal() || base);
+  const [syncing, setSyncing] = useState(true);
 
-  // Sync changes made in another tab (e.g. technician page → admin page)
+  const syncedRef  = useRef(false);   // vrai après le premier chargement Supabase
+  const saveTimer  = useRef(null);    // debounce des sauvegardes
+
+  // ── Chargement initial depuis Supabase ──────────────────────────────────────
   useEffect(() => {
-    function onStorage(e) {
-      if (e.key !== STORAGE_KEY || !e.newValue) return;
-      try {
-        const parsed = JSON.parse(e.newValue);
-        setData(d => ({ comments: {}, timesheets: {}, ...parsed }));
-      } catch {}
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    getItem(STORAGE_KEY).then(remote => {
+      if (remote) {
+        const merged = fromRaw(remote);
+        if (merged) {
+          setData(merged);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...merged, _version: DATA_VERSION })); } catch {}
+        }
+      }
+      syncedRef.current = true;
+      setSyncing(false);
+    });
   }, []);
 
-  // ── Personnel ────────────────────────────────────────────────────────────
+  // ── Sauvegarde locale + Supabase à chaque changement (debounce 800 ms) ──────
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, _version: DATA_VERSION })); } catch {}
+    if (!syncedRef.current) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      setItem(STORAGE_KEY, { ...data, _version: DATA_VERSION });
+    }, 800);
+  }, [data]);
+
+  // ── Temps réel : écoute les modifications depuis d'autres onglets/appareils ─
+  useEffect(() => {
+    const unsub = subscribeToKey(STORAGE_KEY, remote => {
+      const merged = fromRaw(remote);
+      if (merged) {
+        setData(merged);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...merged, _version: DATA_VERSION })); } catch {}
+      }
+    });
+    return unsub;
+  }, []);
+
+  // ── Personnel ────────────────────────────────────────────────────────────────
   const addPerson = useCallback((p) => {
     setData(d => ({ ...d, personnel: [...d.personnel, { ...p, id: genId() }] }));
   }, []);
@@ -66,7 +93,7 @@ export function useAppData() {
     });
   }, []);
 
-  // ── Affaires ─────────────────────────────────────────────────────────────
+  // ── Affaires ──────────────────────────────────────────────────────────────────
   const addAffaire = useCallback((a) => {
     setData(d => ({
       ...d,
@@ -86,7 +113,7 @@ export function useAppData() {
     });
   }, []);
 
-  // ── Planning ──────────────────────────────────────────────────────────────
+  // ── Planning ──────────────────────────────────────────────────────────────────
   const setPlanningCell = useCallback((key, value) => {
     setData(d => {
       const pl = { ...d.planning };
@@ -96,7 +123,6 @@ export function useAppData() {
     });
   }, []);
 
-  // ── Commentaires ──────────────────────────────────────────────────────────
   const setComment = useCallback((key, text) => {
     setData(d => {
       const cmts = { ...d.comments };
@@ -106,7 +132,6 @@ export function useAppData() {
     });
   }, []);
 
-  // Batch update for TaskPlanner (efficient bulk assignment)
   const setPlanningBatch = useCallback((updates) => {
     setData(d => {
       const pl = { ...d.planning };
@@ -118,7 +143,6 @@ export function useAppData() {
     });
   }, []);
 
-  // ── Feuilles d'heures ─────────────────────────────────────────────────────
   const setTimesheetDay = useCallback((personId, dateKey, dayData) => {
     setData(d => {
       const ts = { ...d.timesheets };
@@ -129,7 +153,7 @@ export function useAppData() {
     });
   }, []);
 
-  // ── Import / Export ───────────────────────────────────────────────────────
+  // ── Import / Export ───────────────────────────────────────────────────────────
   const exportData = useCallback(() => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -143,9 +167,8 @@ export function useAppData() {
     reader.onload = (e) => {
       try {
         const parsed = JSON.parse(e.target.result);
-        if (parsed.personnel && parsed.affaires && parsed.planning) {
-          setData(parsed);
-        } else alert('Format invalide.');
+        if (parsed.personnel && parsed.affaires && parsed.planning) setData(parsed);
+        else alert('Format invalide.');
       } catch { alert('Erreur de lecture du fichier.'); }
     };
     reader.readAsText(file);
@@ -158,9 +181,12 @@ export function useAppData() {
   }, []);
 
   return {
-    personnel: data.personnel, affaires: data.affaires, planning: data.planning, comments: data.comments, timesheets: data.timesheets,
+    syncing,
+    personnel: data.personnel, affaires: data.affaires, planning: data.planning,
+    comments: data.comments, timesheets: data.timesheets,
     addPerson, updatePerson, deletePerson,
     addAffaire, updateAffaire, deleteAffaire,
-    setPlanningCell, setPlanningBatch, setComment, setTimesheetDay, exportData, importData, resetToInitial,
+    setPlanningCell, setPlanningBatch, setComment, setTimesheetDay,
+    exportData, importData, resetToInitial,
   };
 }

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
 import { INITIAL_PERSONNEL, INITIAL_AFFAIRES } from '../data/initial'
+import { getItem, setItem } from '../lib/supabaseStorage'
 
 const LS_DATA_KEY  = 'els_planning_data'
 const LS_USERS_KEY = 'els_utilisateurs'
@@ -41,8 +42,27 @@ function loadPersonnel() {
   return INITIAL_PERSONNEL
 }
 
+async function loadUsersFromSupabase() {
+  const remote = await getItem(LS_USERS_KEY)
+  if (remote) {
+    try { localStorage.setItem(LS_USERS_KEY, JSON.stringify(remote)) } catch {}
+    return remote
+  }
+  return loadUsers()
+}
+
+async function loadPersonnelFromSupabase() {
+  const remote = await getItem(LS_DATA_KEY)
+  if (remote?.personnel?.length) {
+    try { localStorage.setItem(LS_DATA_KEY, JSON.stringify(remote)) } catch {}
+    return remote.personnel
+  }
+  return loadPersonnel()
+}
+
 function saveUsers(users) {
   localStorage.setItem(LS_USERS_KEY, JSON.stringify(users))
+  setItem(LS_USERS_KEY, users)
 }
 
 function savePersonnelField(id, updates) {
@@ -55,6 +75,7 @@ function savePersonnelField(id, updates) {
     if (!d.planning)  d.planning  = {}
     d.personnel = d.personnel.map(p => p.id === id ? { ...p, ...updates } : p)
     localStorage.setItem(LS_DATA_KEY, JSON.stringify(d))
+    setItem(LS_DATA_KEY, d)
   } catch {}
 }
 
@@ -67,6 +88,12 @@ export default function AdminPage() {
   const [personnel, setPersonnel] = useState(loadPersonnel)
   const [saved,     setSaved]     = useState(false)
   const [search,    setSearch]    = useState('')
+
+  // Charger les données depuis Supabase au montage
+  useEffect(() => {
+    loadUsersFromSupabase().then(u => setUsers(u))
+    loadPersonnelFromSupabase().then(p => setPersonnel(p))
+  }, [])
 
   function getUser(id) { return users.find(u => u.id === id) }
 

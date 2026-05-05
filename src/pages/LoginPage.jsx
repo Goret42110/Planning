@@ -2,8 +2,16 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
+import { getItem } from '../lib/supabaseStorage'
 
-function getUsers() {
+async function getUsers() {
+  // Priorité : Supabase (source de vérité partagée)
+  const remote = await getItem('els_utilisateurs')
+  if (remote) {
+    try { localStorage.setItem('els_utilisateurs', JSON.stringify(remote)) } catch {}
+    return remote
+  }
+  // Fallback : localStorage puis fichier statique
   try {
     const s = localStorage.getItem('els_utilisateurs')
     if (s) return JSON.parse(s)
@@ -17,18 +25,21 @@ export default function LoginPage() {
   const [identifiant, setIdentifiant] = useState('')
   const [motDePasse,  setMotDePasse]  = useState('')
   const [erreur,      setErreur]      = useState('')
+  const [loading,     setLoading]     = useState(false)
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    const user = getUsers().find(
+    setLoading(true)
+    const users = await getUsers()
+    const user = users.find(
       u => u.identifiant === identifiant.trim().toLowerCase() && u.motDePasse === motDePasse
     )
+    setLoading(false)
     if (!user) {
       setErreur('Identifiant ou mot de passe incorrect.')
       return
     }
     login({ id: user.id, prenom: user.prenom, nom: user.nom, role: user.role, serviceId: user.serviceId })
-
     if (user.role === 'technicien') navigate(`/technicien/${user.id}`, { replace: true })
     else navigate('/planning', { replace: true })
   }
@@ -77,9 +88,9 @@ export default function LoginPage() {
             </div>
           )}
 
-          <button type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors">
-            Se connecter
+          <button type="submit" disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2">
+            {loading ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Connexion…</> : 'Se connecter'}
           </button>
         </form>
       </div>

@@ -22,6 +22,15 @@ export default function App() {
   const [selectedCA, setSelectedCA] = useState(null)
   const [personTypeFilter, setPersonTypeFilter] = useState('all')
 
+  if (appData.syncing) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-slate-500 text-sm">Chargement des données…</p>
+      </div>
+    </div>
+  )
+
   return (
     <AppContext.Provider value={{
       ...appData,
