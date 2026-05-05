@@ -14,11 +14,12 @@ const WEEK_COUNT = 6
 const PERSON_COL_W = 195
 
 function AffaireFilter({ affaires, selected, onChange }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]     = useState(false)
+  const [search, setSearch] = useState('')
   const ref = useRef(null)
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch('') } }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
@@ -26,8 +27,17 @@ function AffaireFilter({ affaires, selected, onChange }) {
   const toggle = (id) =>
     onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
 
+  const q = search.trim().toLowerCase()
+  const visible = q
+    ? affaires.filter(a =>
+        a.numero.toLowerCase().includes(q) ||
+        a.intitule.toLowerCase().includes(q) ||
+        (a.client || '').toLowerCase().includes(q)
+      )
+    : affaires
+
   const label = selected.length === 0
-    ? 'Toutes les affaires'
+    ? 'Filtrer par affaire'
     : selected.length === 1
       ? (affaires.find(a => a.id === selected[0])?.numero ?? '1 affaire')
       : `${selected.length} affaires`
@@ -42,36 +52,55 @@ function AffaireFilter({ affaires, selected, onChange }) {
             : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
         }`}
       >
-        <span className="text-slate-400">⊟</span>
+        <span className="text-slate-400">🔍</span>
         <span>{label}</span>
-        <span className="text-slate-400 ml-1">{open ? '▲' : '▼'}</span>
+        {selected.length > 0 && (
+          <span onClick={e => { e.stopPropagation(); onChange([]) }}
+            className="ml-1 text-blue-400 hover:text-blue-700 font-bold">✕</span>
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg w-64 py-2">
-          <div className="px-3 pb-1.5 border-b border-slate-100 mb-1 flex items-center justify-between">
-            <span className="text-slate-400 text-xs uppercase tracking-wider">Filtrer par affaire</span>
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl w-72 flex flex-col" style={{ maxHeight: 400 }}>
+          {/* Barre de recherche */}
+          <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="N° affaire, intitulé, client…"
+              className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-400 bg-slate-50"
+            />
             {selected.length > 0 && (
-              <button onClick={() => onChange([])} className="text-slate-400 hover:text-slate-700 text-xs">Effacer</button>
+              <button onClick={() => onChange([])} className="mt-1.5 text-xs text-slate-400 hover:text-red-500">
+                Effacer la sélection ({selected.length})
+              </button>
             )}
           </div>
-          {affaires.map(a => {
-            const c = getAffaireColor(a.colorIndex)
-            const checked = selected.includes(a.id)
-            return (
-              <button key={a.id} onClick={() => toggle(a.id)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 transition-colors text-left">
-                <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? 'border-blue-500 bg-blue-600' : 'border-slate-300'}`}>
-                  {checked && <span className="text-white text-xs leading-none">✓</span>}
-                </span>
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.border }} />
-                <div className="min-w-0">
-                  <div className="font-mono text-xs font-semibold" style={{ color: c.text !== '#FCD34D' ? c.text : '#92400E' }}>{a.numero}</div>
-                  <div className="text-slate-500 text-xs truncate">{a.intitule}</div>
-                </div>
-              </button>
-            )
-          })}
+
+          {/* Liste scrollable */}
+          <div className="overflow-y-auto py-1">
+            {visible.length === 0 && (
+              <p className="text-xs text-slate-400 px-4 py-3 italic">Aucun résultat</p>
+            )}
+            {visible.map(a => {
+              const c = getAffaireColor(a.colorIndex)
+              const checked = selected.includes(a.id)
+              return (
+                <button key={a.id} onClick={() => toggle(a.id)}
+                  className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-50 transition-colors text-left">
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? 'border-blue-500 bg-blue-600' : 'border-slate-200'}`}>
+                    {checked && <span className="text-white text-xs leading-none">✓</span>}
+                  </span>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.border }} />
+                  <div className="min-w-0">
+                    <div className="font-mono text-xs font-semibold text-slate-800">{a.numero}</div>
+                    <div className="text-slate-400 text-xs truncate">{a.intitule}</div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
