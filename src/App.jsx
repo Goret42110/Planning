@@ -1,6 +1,5 @@
 import { useState, createContext, useContext } from 'react'
 import { useAppData } from './hooks/useAppData'
-import { useAuth } from './context/AuthContext'
 import Header from './components/Header'
 import TabNav from './components/TabNav'
 import PlanningGrid from './components/planning/PlanningGrid'
@@ -14,11 +13,8 @@ import BudgetPrevisionnelPage from './pages/BudgetPrevisionnelPage'
 export const AppContext = createContext(null)
 export const useApp = () => useContext(AppContext)
 
-export default function App() {
+export function AppProvider({ children }) {
   const appData = useAppData()
-  const { session } = useAuth()
-
-  const [activeTab, setActiveTab] = useState('planning')
   const [selectedCA, setSelectedCA] = useState(null)
   const [personTypeFilter, setPersonTypeFilter] = useState('all')
 
@@ -39,19 +35,27 @@ export default function App() {
       personTypeFilter,
       setPersonTypeFilter,
     }}>
-      <div className="flex flex-col h-screen bg-slate-50">
-        <Header />
-        <TabNav activeTab={activeTab} setActiveTab={setActiveTab} />
-        <div className="flex-1 overflow-hidden">
-          {activeTab === 'planning'    && <PlanningGrid />}
-          {activeTab === 'personnel'   && <PersonnelList />}
-          {activeTab === 'affaires'    && <AffaireList />}
-          {activeTab === 'charge'      && <ChargeGlobale />}
-          {activeTab === 'recap'       && <RecapDashboard />}
-          {activeTab === 'recapheures' && <RecapHeures />}
-          {activeTab === 'budget'      && <BudgetPrevisionnelPage />}
-        </div>
-      </div>
+      {children}
     </AppContext.Provider>
+  )
+}
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('planning')
+
+  return (
+    <div className="flex flex-col h-screen bg-slate-50">
+      <Header />
+      <TabNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'planning'    && <PlanningGrid />}
+        {activeTab === 'personnel'   && <PersonnelList />}
+        {activeTab === 'affaires'    && <AffaireList />}
+        {activeTab === 'charge'      && <ChargeGlobale />}
+        {activeTab === 'recap'       && <RecapDashboard />}
+        {activeTab === 'recapheures' && <RecapHeures />}
+        {activeTab === 'budget'      && <BudgetPrevisionnelPage />}
+      </div>
+    </div>
   )
 }
