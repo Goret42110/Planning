@@ -1,13 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://wztsmvnwnqwmstvqpchb.supabase.co'
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6dHNtdm53bnF3bXN0dnFwY2hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDQzODIsImV4cCI6MjA5MzU4MDM4Mn0.TYYl4R2XIGlTBsne2Jv3Ra-HKEawvy8btHJR9HHlI4I'
 
-console.log('[Supabase] URL:', url ?? 'UNDEFINED')
-console.log('[Supabase] KEY:', key ? key.slice(0, 20) + '...' : 'UNDEFINED')
-
-export const supabase = (url && key)
-  ? createClient(url, key)
-  : null
-
-if (!supabase) console.error('[Supabase] CLIENT NULL — variables env manquantes dans le build Vercel')
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
