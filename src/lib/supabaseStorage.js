@@ -1,25 +1,27 @@
 import { supabase } from './supabase'
 
 export async function getItem(key) {
-  if (!supabase) return null
+  if (!supabase) { console.warn('[Supabase] client null — vérifiez les variables env'); return null }
   try {
     const { data, error } = await supabase
       .from('els_storage')
       .select('value')
       .eq('key', key)
       .single()
-    if (error || !data) return null
-    return data.value
-  } catch { return null }
+    if (error) { console.error('[Supabase] getItem error:', error.message, error.details); return null }
+    return data?.value ?? null
+  } catch (e) { console.error('[Supabase] getItem exception:', e); return null }
 }
 
 export async function setItem(key, value) {
-  if (!supabase) return
+  if (!supabase) { console.warn('[Supabase] client null — vérifiez les variables env'); return }
   try {
-    await supabase
+    const { error } = await supabase
       .from('els_storage')
       .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
-  } catch {}
+    if (error) console.error('[Supabase] setItem error:', error.message, error.details)
+    else console.log('[Supabase] setItem OK:', key)
+  } catch (e) { console.error('[Supabase] setItem exception:', e) }
 }
 
 export function subscribeToKey(key, callback) {
