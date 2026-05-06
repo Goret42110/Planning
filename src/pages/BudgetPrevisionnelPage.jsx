@@ -12,7 +12,7 @@ import TableauMensuel from '../components/budget/TableauMensuel'
 import PanneauObjectifs from '../components/budget/PanneauObjectifs'
 
 export default function BudgetPrevisionnelPage() {
-  const { personnel, affaires } = useApp()
+  const { personnel, affaires, planning } = useApp()
   const { session } = useAuth()
 
   const isResponsable = session?.role === 'responsable'
@@ -52,6 +52,8 @@ export default function BudgetPrevisionnelPage() {
   // Calcul budget
   const { monthlyData, kpis, fiscalMonths } = useBudgetPrevisionnel({
     affaires,
+    planning,
+    personnel,
     objectifs: objectif,
     fiscalYear,
     filtreCA: filtreCAEffectif,

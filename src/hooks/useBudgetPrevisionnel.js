@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { getMondayOfWeek } from '../utils/weeks'
+import { getCellSlots, slotJH, isSpecialId } from '../utils/slots'
 
 /**
  * Retourne les 12 mois de l'exercice fiscal.
@@ -98,6 +100,62 @@ function distributeAffaire(affaire, fiscalMonths) {
 }
 
 /**
+ * Parse une clé planning "{personId}_{isoYear}-W{isoWeek}_{dayIndex}"
+ */
+function parsePlanningKey(key) {
+  const m = key.match(/^(.+)_(\d{4})-W(\d{2})_(\d)$/)
+  if (!m) return null
+  return { personId: m[1], isoYear: parseInt(m[2]), isoWeek: parseInt(m[3]), dayIndex: parseInt(m[4]) }
+}
+
+/**
+ * Calcule les jours personnel (validés et pondérés) par mois depuis le planning.
+ * Retourne { [monthKey]: { joursValides, joursPonderes } }
+ */
+function getPersonnelMonthlyData(planning, affairesMap, filtreCA, filtreService, personnel, probMin) {
+  const result = {}
+
+  for (const [key, cellValue] of Object.entries(planning)) {
+    const parsed = parsePlanningKey(key)
+    if (!parsed) continue
+
+    const slots = getCellSlots(cellValue)
+    if (!slots.length) continue
+
+    // Calculer la date calendaire de la cellule
+    const monday = getMondayOfWeek(parsed.isoYear, parsed.isoWeek)
+    const date = new Date(monday)
+    date.setDate(date.getDate() + parsed.dayIndex)
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
+    for (const slot of slots) {
+      if (isSpecialId(slot.id)) continue
+      const affaire = affairesMap[slot.id]
+      if (!affaire) continue
+
+      // Appliquer les filtres
+      if (filtreCA && affaire.caId !== filtreCA) continue
+      if (filtreService && affaire.serviceId && affaire.serviceId !== filtreService) continue
+      const prob = parseFloat(affaire.probabilite) || 0
+      if (prob < (probMin || 0)) continue
+
+      const jh = slotJH(slot)
+      if (!result[monthKey]) result[monthKey] = { joursValides: 0, joursPonderes: 0 }
+      if (prob === 100) result[monthKey].joursValides += jh
+      result[monthKey].joursPonderes += jh * (prob / 100)
+    }
+  }
+
+  // Arrondir
+  for (const mk of Object.keys(result)) {
+    result[mk].joursValides  = Math.round(result[mk].joursValides  * 10) / 10
+    result[mk].joursPonderes = Math.round(result[mk].joursPonderes * 10) / 10
+  }
+
+  return result
+}
+
+/**
  * Agrège toutes les affaires mois par mois
  */
 function getMonthlyData(affairesFiltrees, fiscalMonths, objectifMensuelCA, objectifMensuelHeures) {
@@ -150,7 +208,7 @@ function getMonthlyData(affairesFiltrees, fiscalMonths, objectifMensuelCA, objec
  * @param {string} params.filtreService  - serviceId à filtrer (ou '' pour tous)
  * @param {number} params.probMin        - probabilité minimum (0, 25, 50, 75, 100)
  */
-export function useBudgetPrevisionnel({ affaires, objectifs, fiscalYear, filtreCA, filtreService, probMin }) {
+export function useBudgetPrevisionnel({ affaires, planning, personnel, objectifs, fiscalYear, filtreCA, filtreService, probMin }) {
   return useMemo(() => {
     const fiscalMonths = getFiscalMonths(fiscalYear)
 
@@ -171,6 +229,15 @@ export function useBudgetPrevisionnel({ affaires, objectifs, fiscalYear, filtreC
 
     // ── Données mensuelles ────────────────────────────────────────────────────
     const monthlyData = getMonthlyData(affairesFiltrees, fiscalMonths, objectifMensuelCA, objectifMensuelHeures)
+
+    // ── Personnel depuis le planning ──────────────────────────────────────────
+    const affairesMap = Object.fromEntries(affaires.map(a => [a.id, a]))
+    const personnelMonthly = getPersonnelMonthlyData(planning || {}, affairesMap, filtreCA, filtreService, personnel || [], probMin)
+    for (const row of monthlyData) {
+      const pm = personnelMonthly[row.key] || { joursValides: 0, joursPonderes: 0 }
+      row.joursPersonnelValides  = pm.joursValides
+      row.joursPersonnelPonderes = pm.joursPonderes
+    }
 
     // ── KPIs globaux (incluent toutes les affaires filtrées, avec ou sans dates) ─
     let caValideTotal = 0

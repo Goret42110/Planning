@@ -12,9 +12,11 @@ function rowBg(row) {
 }
 
 function exportCSV(data, exerciceLabel) {
-  const headers = ['Mois', 'H. prévis.', 'H. validées', 'CA prévis. (€)', 'CA validé (€)', 'Nb aff.', 'Objectif CA (€)', 'Écart (€)']
+  const headers = ['Mois', 'J. personnel validés', 'J. personnel pondérés', 'H. prévis.', 'H. validées', 'CA prévis. (€)', 'CA validé (€)', 'Nb aff.', 'Objectif CA (€)', 'Écart (€)']
   const rows = data.map(d => [
     d.label,
+    d.joursPersonnelValides ?? 0,
+    d.joursPersonnelPonderes ?? 0,
     d.heuresPondees,
     d.heuresValides,
     d.caPondere,
@@ -49,11 +51,13 @@ function exportCSV(data, exerciceLabel) {
 export default function TableauMensuel({ data, exerciceLabel }) {
   if (!data?.length) return null
 
-  const totH = data.reduce((s, d) => s + d.heuresPondees, 0)
-  const totHV = data.reduce((s, d) => s + d.heuresValides, 0)
-  const totCA = data.reduce((s, d) => s + d.caPondere, 0)
+  const totJV  = data.reduce((s, d) => s + (d.joursPersonnelValides  ?? 0), 0)
+  const totJP  = data.reduce((s, d) => s + (d.joursPersonnelPonderes ?? 0), 0)
+  const totH   = data.reduce((s, d) => s + d.heuresPondees, 0)
+  const totHV  = data.reduce((s, d) => s + d.heuresValides, 0)
+  const totCA  = data.reduce((s, d) => s + d.caPondere, 0)
   const totCAV = data.reduce((s, d) => s + d.caValide, 0)
-  const totNb = data.reduce((s, d) => s + d.nbAffaires, 0)
+  const totNb  = data.reduce((s, d) => s + d.nbAffaires, 0)
   const totObj = data.reduce((s, d) => s + d.objectifCA, 0)
   const totEcart = data.reduce((s, d) => s + d.ecartCA, 0)
 
@@ -76,6 +80,8 @@ export default function TableauMensuel({ data, exerciceLabel }) {
           <thead>
             <tr className="border-b border-slate-200">
               <th className="text-left px-4 py-2.5 text-slate-400 font-medium uppercase tracking-wider">Mois</th>
+              <th className="text-right px-3 py-2.5 text-blue-400 font-medium uppercase tracking-wider" title="Jours planning sur affaires à 100%">J. pers. validés</th>
+              <th className="text-right px-3 py-2.5 text-indigo-400 font-medium uppercase tracking-wider" title="Jours planning pondérés par probabilité">J. pers. pondérés</th>
               <th className="text-right px-3 py-2.5 text-slate-400 font-medium uppercase tracking-wider">H. prévis.</th>
               <th className="text-right px-3 py-2.5 text-slate-400 font-medium uppercase tracking-wider">H. validées</th>
               <th className="text-right px-3 py-2.5 text-slate-400 font-medium uppercase tracking-wider">CA prévis.</th>
@@ -89,6 +95,8 @@ export default function TableauMensuel({ data, exerciceLabel }) {
             {data.map((row, i) => (
               <tr key={row.key} className={`border-b border-slate-100 ${rowBg(row)}`}>
                 <td className="px-4 py-2 font-medium text-slate-700">{row.label}</td>
+                <td className="px-3 py-2 text-right text-blue-700 font-medium">{row.joursPersonnelValides > 0 ? row.joursPersonnelValides + ' j' : '—'}</td>
+                <td className="px-3 py-2 text-right text-indigo-600">{row.joursPersonnelPonderes > 0 ? row.joursPersonnelPonderes + ' j' : '—'}</td>
                 <td className="px-3 py-2 text-right text-slate-600">{row.heuresPondees} h</td>
                 <td className="px-3 py-2 text-right text-slate-600">{row.heuresValides} h</td>
                 <td className="px-3 py-2 text-right text-slate-600">{formatK(row.caPondere)}</td>
@@ -104,6 +112,8 @@ export default function TableauMensuel({ data, exerciceLabel }) {
           <tfoot>
             <tr className="bg-slate-100 border-t-2 border-slate-300">
               <td className="px-4 py-2.5 font-bold text-slate-800">TOTAL</td>
+              <td className="px-3 py-2.5 text-right font-bold text-blue-700">{Math.round(totJV * 10) / 10} j</td>
+              <td className="px-3 py-2.5 text-right font-bold text-indigo-600">{Math.round(totJP * 10) / 10} j</td>
               <td className="px-3 py-2.5 text-right font-bold text-slate-800">{Math.round(totH * 10) / 10} h</td>
               <td className="px-3 py-2.5 text-right font-bold text-slate-800">{Math.round(totHV * 10) / 10} h</td>
               <td className="px-3 py-2.5 text-right font-bold text-slate-800">{formatK(totCA)}</td>
