@@ -1,5 +1,6 @@
 const TABS = [
   { id: 'planning',    label: 'Planning'       },
+  { id: 'gantt',       label: '📅 Gantt'       },
   { id: 'personnel',   label: 'Personnel'      },
   { id: 'affaires',    label: 'Affaires'       },
   { id: 'charge',      label: 'Charge globale' },

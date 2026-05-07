@@ -9,6 +9,7 @@ import ChargeGlobale from './components/charge/ChargeGlobale'
 import RecapDashboard from './components/recap/RecapDashboard'
 import RecapHeures from './components/recap/RecapHeures'
 import BudgetPrevisionnelPage from './pages/BudgetPrevisionnelPage'
+import GanttPage from './pages/GanttPage'
 
 export const AppContext = createContext(null)
 export const useApp = () => useContext(AppContext)
@@ -49,6 +50,7 @@ export default function App() {
       <TabNav activeTab={activeTab} setActiveTab={setActiveTab} />
       <div className="flex-1 overflow-hidden">
         {activeTab === 'planning'    && <PlanningGrid />}
+        {activeTab === 'gantt'       && <GanttPage />}
         {activeTab === 'personnel'   && <PersonnelList />}
         {activeTab === 'affaires'    && <AffaireList />}
         {activeTab === 'charge'      && <ChargeGlobale />}
