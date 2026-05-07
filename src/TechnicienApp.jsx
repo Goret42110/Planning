@@ -3,13 +3,13 @@ import { useAppData } from './hooks/useAppData'
 import { SPECIAL_CODES, getAffaireColor } from './utils/colors'
 import { getCellSlots, packSlots } from './utils/slots'
 import {
-  getWorkDays, getCurrentWeekInfo, getMondayOfWeek, addWeeks,
+  getWorkDays, getWeekDays, getCurrentWeekInfo, getMondayOfWeek, addWeeks,
   planningKey, toDateKey, isHoliday, formatShortDate, getISOWeek, getISOYear,
 } from './utils/weeks'
 
 // ─── Shared constants ────────────────────────────────────────────────────────
-const DAYS_LONG  = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi']
-const DAYS_SHORT = ['Lun','Mar','Mer','Jeu','Ven']
+const DAYS_LONG  = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']
+const DAYS_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
 const MONTHS_FR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']
 const SPECIAL_OPTIONS = Object.entries(SPECIAL_CODES).map(([code, info]) => ({ code, label: info.label }))
 
@@ -439,22 +439,28 @@ function WeekPlanningTab({ person, affaires, planning, comments, setComment, yea
 
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-7 gap-2">
         {days.map((date, di) => {
-          const dateKey = toDateKey(date)
-          const hol     = isHoliday(date)
-          const key     = planningKey(person.id, year, week, di)
-          const slots   = getCellSlots(planning[key])
-          const cmt     = comments[key]
-          const isT     = dateKey === todayKey
+          const dateKey  = toDateKey(date)
+          const hol      = isHoliday(date)
+          const key      = planningKey(person.id, year, week, di)
+          const slots    = getCellSlots(planning[key])
+          const cmt      = comments[key]
+          const isT      = dateKey === todayKey
+          const isWeekend = di >= 5
 
           return (
             <div key={di}
-              className={`rounded-xl border overflow-hidden ${hol ? 'border-slate-100 bg-slate-50' : isT ? 'border-blue-300 bg-white' : 'border-slate-200 bg-white'}`}>
+              className={`rounded-xl border overflow-hidden ${
+                hol        ? 'border-slate-100 bg-slate-50'   :
+                isWeekend  ? 'border-slate-100 bg-slate-50/70':
+                isT        ? 'border-blue-300 bg-white'       :
+                             'border-slate-200 bg-white'
+              }`}>
               {/* Day label */}
-              <div className={`px-3 py-2 border-b ${hol ? 'bg-slate-100 border-slate-100' : isT ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
-                <p className={`text-xs font-bold ${isT ? 'text-blue-700' : 'text-slate-500'}`}>{DAYS_SHORT[di]}</p>
-                <p className={`text-sm font-semibold ${isT ? 'text-blue-800' : 'text-slate-700'}`}>{date.getDate()} {MONTHS_FR[date.getMonth()].slice(0,3)}.</p>
+              <div className={`px-3 py-2 border-b ${hol ? 'bg-slate-100 border-slate-100' : isWeekend ? 'bg-slate-100 border-slate-100' : isT ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
+                <p className={`text-xs font-bold ${isT ? 'text-blue-700' : isWeekend ? 'text-slate-400' : 'text-slate-500'}`}>{DAYS_SHORT[di]}</p>
+                <p className={`text-sm font-semibold ${isT ? 'text-blue-800' : isWeekend ? 'text-slate-400' : 'text-slate-700'}`}>{date.getDate()} {MONTHS_FR[date.getMonth()].slice(0,3)}.</p>
               </div>
 
               <div className="p-2.5 space-y-1.5">
@@ -665,10 +671,11 @@ export default function TechnicienApp({ forcedPersonId, onLogout }) {
   const [week, setWeek] = useState(curWeek)
 
   const person = personnel.find(p => p.id === personId)
-  const days   = useMemo(() => getWorkDays(year, week), [year, week])
+  const days   = useMemo(() => getWeekDays(year, week).slice(0, 7), [year, week])
 
   const monday = getMondayOfWeek(year, week)
   const friday = new Date(monday); friday.setDate(monday.getDate() + 4)
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
 
   function login(id) {
     setPersonId(id)
@@ -771,7 +778,7 @@ export default function TechnicienApp({ forcedPersonId, onLogout }) {
       <div className="bg-white border-b border-slate-100 px-4 py-2.5 flex items-center gap-3 shrink-0">
         <button onClick={prevWeek} className="px-2 py-1 border border-slate-200 rounded text-slate-500 hover:bg-slate-50 text-sm">‹</button>
         <span className="text-sm font-medium text-slate-700">
-          Semaine {week} · {fmtShort(monday)} – {fmtShort(friday)}
+          Semaine {week} · {fmtShort(monday)} – {fmtShort(sunday)}
         </span>
         <button onClick={nextWeek} className="px-2 py-1 border border-slate-200 rounded text-slate-500 hover:bg-slate-50 text-sm">›</button>
         <button onClick={goToday} className="px-2.5 py-1 border border-slate-200 rounded text-xs text-slate-500 hover:bg-slate-50">Auj.</button>
