@@ -27,6 +27,30 @@ function parsePlanningKey(key) {
   return { personId: m[1], isoYear: parseInt(m[2]), isoWeek: parseInt(m[3]), dayIndex: parseInt(m[4]) }
 }
 
+// Nombre de jours calendaires entre deux dates
+function calendarDays(start, end) {
+  return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
+}
+
+// Jours de chevauchement entre [s,e] et le mois m
+function overlapDaysMonth(s, e, monthDate) {
+  const ms = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+  const me = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0)
+  const os = s > ms ? s : ms
+  const oe = e < me ? e : me
+  if (os > oe) return 0
+  return Math.round((oe.getTime() - os.getTime()) / 86400000) + 1
+}
+
+// Effectif théorique moyen par semaine = heuresPrevues / (durée en semaines * 40h/sem)
+function theoreticalFTE(heuresPrevues, dateDebut, dateFin) {
+  const h = parseFloat(heuresPrevues)
+  if (!h || !dateDebut || !dateFin) return null
+  const days = calendarDays(new Date(dateDebut), new Date(dateFin))
+  const weeks = days / 7
+  return Math.round((h / (weeks * 40)) * 10) / 10
+}
+
 function getStaffingByWeek(affaireId, planning) {
   const byWeek = {}
   for (const [key, val] of Object.entries(planning)) {
@@ -40,37 +64,52 @@ function getStaffingByWeek(affaireId, planning) {
   return byWeek
 }
 
-function StaffingBar({ affaireId, planning, startDate, endDate, totalMs, color }) {
-  const byWeek = useMemo(() => getStaffingByWeek(affaireId, planning), [affaireId, planning])
+function StaffingBars({ affaire, planning, viewStart, totalMs, color, fte }) {
+  const byWeek = useMemo(() => getStaffingByWeek(affaire.id, planning), [affaire.id, planning])
 
   const entries = Object.entries(byWeek).map(([wk, count]) => {
     const [yr, wn] = wk.split('-W').map(Number)
     const monday = getMondayOfWeek(yr, wn)
     const midMs = monday.getTime() + 3 * 24 * 3600 * 1000
-    const pct = ((midMs - startDate.getTime()) / totalMs) * 100
+    const pct = ((midMs - viewStart.getTime()) / totalMs) * 100
     return { pct, count }
   }).filter(e => e.pct >= 0 && e.pct <= 100)
 
-  const max = Math.max(...entries.map(e => e.count), 1)
+  const maxScale = Math.max(...entries.map(e => e.count), fte ?? 1, 1)
+
+  // Ligne de référence théorique (en % de hauteur)
+  const refPct = fte ? Math.min((fte / maxScale) * 80, 92) : null
 
   return (
-    <div className="absolute inset-0 flex items-end px-0.5 overflow-hidden pointer-events-none">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Barres effectif réel */}
       {entries.map((e, i) => (
-        <div key={i} title={`${e.count} pers.`}
-          className="absolute bottom-0.5 w-1.5 rounded-sm opacity-70"
+        <div key={i} title={`${e.count} pers. planifiées`}
+          className="absolute bottom-0.5 w-2 rounded-sm"
           style={{
             left: `${e.pct}%`,
-            height: `${Math.max(20, (e.count / max) * 80)}%`,
+            height: `${Math.max(15, (e.count / maxScale) * 80)}%`,
             background: color.border,
+            opacity: 0.55,
             transform: 'translateX(-50%)',
           }}
         />
       ))}
+      {/* Ligne théorique en pointillés */}
+      {refPct !== null && (
+        <div className="absolute left-0 right-0"
+          style={{
+            bottom: `calc(${refPct}% + 2px)`,
+            borderTop: `1.5px dashed ${color.border}`,
+            opacity: 0.9,
+          }}
+        />
+      )}
     </div>
   )
 }
 
-function GanttBar({ affaire, planning, viewStart, viewEnd, totalMs, rowH }) {
+function GanttBar({ affaire, planning, viewStart, viewEnd, totalMs }) {
   const color = getAffaireColor(affaire.colorIndex)
   if (!affaire.dateDebut || !affaire.dateFin) return null
 
@@ -84,11 +123,12 @@ function GanttBar({ affaire, planning, viewStart, viewEnd, totalMs, rowH }) {
   const left  = ((clampedStart.getTime() - viewStart.getTime()) / totalMs) * 100
   const width = ((clampedEnd.getTime()   - clampedStart.getTime()) / totalMs) * 100
   const prob  = parseFloat(affaire.probabilite) || 100
-  const opacity = 0.4 + (prob / 100) * 0.6
+  const opacity = 0.35 + (prob / 100) * 0.65
+  const fte   = theoreticalFTE(affaire.heuresPrevues, affaire.dateDebut, affaire.dateFin)
 
   return (
     <div
-      className="absolute top-1 rounded overflow-hidden border cursor-default select-none"
+      className="absolute top-1 rounded border cursor-default select-none overflow-hidden"
       style={{
         left: `${left}%`,
         width: `${Math.max(width, 0.3)}%`,
@@ -97,33 +137,77 @@ function GanttBar({ affaire, planning, viewStart, viewEnd, totalMs, rowH }) {
         borderColor: color.border,
         opacity,
       }}
-      title={`${affaire.numero} — ${affaire.intitule}\n${affaire.dateDebut} → ${affaire.dateFin}${prob < 100 ? `\nProbabilité : ${prob}%` : ''}`}
+      title={[
+        `${affaire.numero} — ${affaire.intitule}`,
+        `${affaire.dateDebut} → ${affaire.dateFin}`,
+        fte ? `Effectif théorique : ${fte} pers./sem.` : '',
+        prob < 100 ? `Probabilité : ${prob}%` : '',
+      ].filter(Boolean).join('\n')}
     >
-      <StaffingBar
-        affaireId={affaire.id}
+      <StaffingBars
+        affaire={affaire}
         planning={planning}
-        startDate={viewStart}
-        endDate={viewEnd}
+        viewStart={viewStart}
         totalMs={totalMs}
         color={color}
+        fte={fte}
       />
-      <div className="absolute inset-0 flex items-center px-1.5 overflow-hidden">
+      {/* Label + badge FTE */}
+      <div className="absolute inset-0 flex items-center justify-between px-1.5 overflow-hidden gap-1">
         <span className="text-xs font-medium truncate whitespace-nowrap" style={{ color: color.text }}>
           {affaire.numero}
         </span>
+        {fte !== null && width > 4 && (
+          <span className="shrink-0 text-xs font-bold px-1 rounded"
+            style={{ color: color.border, background: 'rgba(255,255,255,0.7)' }}>
+            {fte}p
+          </span>
+        )}
       </div>
     </div>
   )
+}
+
+// Cumul théorique par mois
+function useMensuelTheoriqueData(affaires, months) {
+  return useMemo(() => {
+    return months.map(m => {
+      let total = 0
+      const mDays = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate()
+
+      for (const a of affaires) {
+        if (!a.dateDebut || !a.dateFin || !a.heuresPrevues) continue
+        const h = parseFloat(a.heuresPrevues)
+        if (!h) continue
+        const start = new Date(a.dateDebut)
+        const end   = new Date(a.dateFin)
+        if (isNaN(start) || isNaN(end)) continue
+
+        const totalDays = calendarDays(start, end)
+        const overlap   = overlapDaysMonth(start, end, m)
+        if (!overlap) continue
+
+        // Heures proratisées sur ce mois × prob
+        const prob = (parseFloat(a.probabilite) || 100) / 100
+        const hMois = h * (overlap / totalDays)
+        // FTE = heures / (jours ouvrés du mois * 8h) — approx jours ouvrés = overlap * 5/7
+        const joursOuvres = overlap * 5 / 7
+        total += (hMois / (joursOuvres * 8)) * prob
+      }
+
+      return Math.round(total * 10) / 10
+    })
+  }, [affaires, months])
 }
 
 export default function GanttPage() {
   const { affaires, personnel, planning } = useApp()
 
   const today = new Date()
-  const [viewMonths, setViewMonths]   = useState(6)
-  const [viewStart,  setViewStart]    = useState(() => startOfMonth(today))
-  const [filtreCA,   setFiltreCA]     = useState('')
-  const [filtreSvc,  setFiltreSvc]    = useState('')
+  const [viewMonths,    setViewMonths]    = useState(6)
+  const [viewStart,     setViewStart]     = useState(() => startOfMonth(today))
+  const [filtreCA,      setFiltreCA]      = useState('')
+  const [filtreSvc,     setFiltreSvc]     = useState('')
   const [showSansDates, setShowSansDates] = useState(false)
 
   const caList  = useMemo(() => personnel.filter(p => p.role === 'CA' || p.role === 'RS'), [personnel])
@@ -148,12 +232,16 @@ export default function GanttPage() {
     sansDates:  affairesFiltrees.filter(a => !a.dateDebut || !a.dateFin),
   }), [affairesFiltrees])
 
+  const mensuelTheorique = useMensuelTheoriqueData(avecDates, months)
+  const maxTheo = Math.max(...mensuelTheorique, 1)
+
   const todayPct = useMemo(() => {
     const pct = ((today.getTime() - viewStart.getTime()) / totalMs) * 100
     return pct >= 0 && pct <= 100 ? pct : null
   }, [viewStart, totalMs])
 
-  const ROW_H = 36
+  const ROW_H     = 40
+  const FOOTER_H  = 64
 
   function nav(delta) {
     setViewStart(s => addMonths(s, delta * Math.ceil(viewMonths / 2)))
@@ -196,39 +284,54 @@ export default function GanttPage() {
 
         <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer ml-auto">
           <input type="checkbox" checked={showSansDates} onChange={e => setShowSansDates(e.target.checked)} className="rounded" />
-          Affaires sans dates ({sansDates.length})
+          Sans dates ({sansDates.length})
         </label>
       </div>
 
       <div className="flex-1 overflow-auto">
-        <div className="flex min-h-full" style={{ minWidth: 900 }}>
+        <div className="flex" style={{ minWidth: 900 }}>
 
           {/* Colonne labels */}
-          <div className="shrink-0 w-56 border-r border-slate-200 bg-white">
-            {/* En-tête vide */}
-            <div className="h-8 border-b border-slate-200 bg-slate-50" />
+          <div className="shrink-0 w-64 border-r border-slate-200 bg-white sticky left-0 z-30">
+            <div className="h-8 border-b border-slate-200 bg-slate-50 px-3 flex items-center">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Affaire</span>
+            </div>
             {avecDates.map(a => {
               const color = getAffaireColor(a.colorIndex)
               const prob  = parseFloat(a.probabilite) || 100
+              const fte   = theoreticalFTE(a.heuresPrevues, a.dateDebut, a.dateFin)
               return (
                 <div key={a.id} className="flex items-center gap-2 px-3 border-b border-slate-100 hover:bg-slate-50"
                   style={{ height: ROW_H }}>
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color.border, opacity: 0.4 + (prob/100)*0.6 }} />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="text-xs font-medium text-slate-700 truncate">{a.numero}</div>
                     <div className="text-xs text-slate-400 truncate">{a.client || a.intitule}</div>
                   </div>
-                  {prob < 100 && (
-                    <span className="ml-auto shrink-0 text-xs text-amber-600 font-medium">{prob}%</span>
-                  )}
+                  <div className="shrink-0 text-right">
+                    {fte !== null && (
+                      <div className="text-xs font-bold" style={{ color: color.border }}>{fte}p</div>
+                    )}
+                    {prob < 100 && (
+                      <div className="text-xs text-amber-500">{prob}%</div>
+                    )}
+                  </div>
                 </div>
               )
             })}
 
+            {/* Ligne cumul */}
+            <div className="border-t-2 border-slate-300 bg-slate-50 flex items-center px-3 gap-2" style={{ height: FOOTER_H }}>
+              <div>
+                <div className="text-xs font-bold text-slate-700">Cumul théorique</div>
+                <div className="text-xs text-slate-400">pondéré par probabilité</div>
+              </div>
+            </div>
+
             {showSansDates && sansDates.length > 0 && (
               <>
-                <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
-                  Sans dates programmées
+                <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-50 border-b border-slate-200 border-t">
+                  Sans dates
                 </div>
                 {sansDates.map(a => {
                   const color = getAffaireColor(a.colorIndex)
@@ -250,7 +353,7 @@ export default function GanttPage() {
           {/* Grille timeline */}
           <div className="flex-1 relative">
             {/* En-tête mois */}
-            <div className="flex h-8 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
+            <div className="flex h-8 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
               {months.map((m, i) => (
                 <div key={i} className="flex-1 flex items-center justify-center text-xs font-medium text-slate-500 border-r border-slate-200 last:border-r-0">
                   {MONTHS[m.getMonth()]} {m.getFullYear()}
@@ -260,7 +363,7 @@ export default function GanttPage() {
 
             {/* Ligne aujourd'hui */}
             {todayPct !== null && (
-              <div className="absolute top-0 bottom-0 w-px bg-red-400 z-20 pointer-events-none"
+              <div className="absolute top-0 bottom-0 w-px bg-red-400 z-10 pointer-events-none"
                 style={{ left: `${todayPct}%` }}>
                 <div className="absolute top-8 -translate-x-1/2 bg-red-400 text-white text-xs px-1 py-0.5 rounded whitespace-nowrap">
                   Auj.
@@ -269,7 +372,7 @@ export default function GanttPage() {
             )}
 
             {/* Séparateurs mois */}
-            <div className="absolute inset-0 flex pointer-events-none">
+            <div className="absolute inset-0 flex pointer-events-none z-0">
               {months.map((_, i) => (
                 <div key={i} className="flex-1 border-r border-slate-100 last:border-r-0" />
               ))}
@@ -285,15 +388,38 @@ export default function GanttPage() {
                   viewStart={viewStart}
                   viewEnd={viewEnd}
                   totalMs={totalMs}
-                  rowH={ROW_H}
                 />
               </div>
             ))}
 
+            {/* Ligne cumul théorique par mois */}
+            <div className="flex border-t-2 border-slate-300 bg-slate-50" style={{ height: FOOTER_H }}>
+              {months.map((m, i) => {
+                const val = mensuelTheorique[i]
+                const pct = maxTheo > 0 ? (val / maxTheo) * 70 : 0
+                const danger = val > 10
+                const warn   = val > 7
+                const barColor = danger ? '#ef4444' : warn ? '#f97316' : '#3b82f6'
+                return (
+                  <div key={i} className="flex-1 border-r border-slate-200 last:border-r-0 flex flex-col items-center justify-end pb-1 gap-0.5">
+                    <span className="text-xs font-bold" style={{ color: barColor }}>{val > 0 ? val : '—'}</span>
+                    <div className="w-3/4 rounded-t transition-all"
+                      style={{
+                        height: `${pct}%`,
+                        minHeight: val > 0 ? 4 : 0,
+                        background: barColor,
+                        opacity: 0.7,
+                      }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+
             {/* Lignes vides pour affaires sans dates */}
             {showSansDates && sansDates.length > 0 && (
               <>
-                <div className="h-8 bg-slate-50 border-b border-slate-200" />
+                <div className="h-8 bg-slate-50 border-b border-slate-200 border-t" />
                 {sansDates.map(a => (
                   <div key={a.id} className="relative border-b border-slate-100 flex items-center px-3"
                     style={{ height: ROW_H }}>
@@ -308,20 +434,22 @@ export default function GanttPage() {
         {/* Légende */}
         <div className="px-4 py-3 border-t border-slate-200 bg-white flex items-center gap-6 text-xs text-slate-500 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <div className="w-6 h-3 rounded bg-blue-500 opacity-90" />
-            <span>Affaire certaine (100%)</span>
+            <div className="w-2 h-4 rounded bg-blue-500 opacity-60" />
+            <span>Effectif réel planifié (barres internes)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-6 h-3 rounded bg-blue-500 opacity-50" />
-            <span>Affaire en cours (probabilité &lt; 100%)</span>
+            <div className="w-6 border-t-2 border-dashed border-blue-500" />
+            <span>Ligne théorique nécessaire</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-4 rounded bg-blue-500" />
-            <span>Effectif planifié (barres internes = nb personnes/semaine)</span>
+          <div className="flex items-center gap-1.5 font-medium text-slate-700">
+            <span>Xp</span>
+            <span className="font-normal text-slate-400">= pers. théoriques moy./semaine</span>
           </div>
-          <div className="flex items-center gap-1.5 ml-auto">
-            <div className="w-px h-4 bg-red-400" />
-            <span>Aujourd'hui</span>
+          <div className="flex items-center gap-4 ml-auto">
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-500 opacity-70"/><span>Cumul normal</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-orange-500 opacity-70"/><span>&gt; 7 pers.</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-500 opacity-70"/><span>&gt; 10 pers.</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-px h-4 bg-red-400"/><span>Aujourd'hui</span></div>
           </div>
         </div>
       </div>
