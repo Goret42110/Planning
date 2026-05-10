@@ -1,5 +1,6 @@
-import { useState, createContext, useContext } from 'react'
+import { useState, useMemo, createContext, useContext } from 'react'
 import { useAppData } from './hooks/useAppData'
+import { useAuth } from './context/AuthContext'
 import Header from './components/Header'
 import TabNav from './components/TabNav'
 import PlanningGrid from './components/planning/PlanningGrid'
@@ -16,8 +17,18 @@ export const useApp = () => useContext(AppContext)
 
 export function AppProvider({ children }) {
   const appData = useAppData()
+  const { session } = useAuth()
   const [selectedCA, setSelectedCA] = useState(null)
   const [personTypeFilter, setPersonTypeFilter] = useState('all')
+
+  // Affaires filtrées selon le rôle : un CA ne voit que ses propres affaires
+  const affairesFiltrees = useMemo(() => {
+    if (session?.role === 'ca' || session?.role === 'aca') {
+      const caId = session.role === 'aca' ? session.caId : session.id
+      if (caId) return appData.affaires.filter(a => a.caId === caId)
+    }
+    return appData.affaires
+  }, [appData.affaires, session])
 
   if (appData.syncing) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -31,6 +42,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       ...appData,
+      affaires: affairesFiltrees,
       selectedCA,
       setSelectedCA,
       personTypeFilter,
