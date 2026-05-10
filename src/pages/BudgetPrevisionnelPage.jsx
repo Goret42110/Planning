@@ -96,26 +96,38 @@ export default function BudgetPrevisionnelPage() {
       })
   }, [filtres.vue, filtres.filtreService, filtres.probMin, filtreCAEffectif, caList, affaires, objectif])
 
-  // Données par secteur pour la jauge
+  // Données par secteur pour la jauge (uniquement pour le responsable — vue globale)
   const secteursData = useMemo(() => {
+    if (!isResponsable) return []
     const SECTEURS = [
-      { id: 'energie', label: 'Énergie',  color: '#3b82f6' },
-      { id: 'petrole', label: 'Pétrole',  color: '#f97316' },
+      { id: 'energie', label: 'Énergie', color: '#3b82f6' },
+      { id: 'petrole', label: 'Pétrole', color: '#f97316' },
     ]
     return SECTEURS.map(s => {
-      const caIds = personnel.filter(p => (p.serviceId || 'energie') === s.id && (p.role === 'CA' || p.role === 'RS')).map(p => p.id)
-      const affairesSvc = affaires.filter(a => {
-        if (!caIds.includes(a.caId)) return false
-        const prob = parseFloat(a.probabilite) || 0
-        if (prob < (filtres.probMin || 0)) return false
-        return true
-      })
-      const caValide       = Math.round(affairesSvc.filter(a => parseFloat(a.probabilite) === 100).reduce((sum, a) => sum + (parseFloat(a.montantHT) || 0), 0))
-      const caPrevisionnel = Math.round(affairesSvc.reduce((sum, a) => sum + (parseFloat(a.montantHT) || 0) * ((parseFloat(a.probabilite) || 0) / 100), 0))
+      const caIds = personnel
+        .filter(p => (p.serviceId || 'energie') === s.id && (p.role === 'CA' || p.role === 'RS'))
+        .map(p => p.id)
+      const aff = affaires.filter(a => caIds.includes(a.caId))
+      const caValide       = Math.round(aff.filter(a => (parseFloat(a.probabilite) || 0) === 100).reduce((sum, a) => sum + (parseFloat(a.montantHT) || 0), 0))
+      const caPrevisionnel = Math.round(aff.reduce((sum, a) => sum + (parseFloat(a.montantHT) || 0) * ((parseFloat(a.probabilite) || 100) / 100), 0))
       const objectifSvc    = parseFloat(objectif?.secteurs?.[s.id]?.ca) || 0
       return { ...s, caValide, caPrevisionnel, objectif: objectifSvc }
     })
-  }, [personnel, affaires, filtres.probMin, objectif])
+  }, [isResponsable, personnel, affaires, objectif])
+
+  // Jauge personnelle pour un CA connecté
+  const jaugePersonnelle = useMemo(() => {
+    if (!isCA) return null
+    const caId = session?.id
+    const objectifCA = parseFloat(objectif?.ca?.[caId]?.ca) || 0
+    return {
+      label: `${session?.prenom} ${session?.nom}`,
+      caValide:       kpis.caValide,
+      caPrevisionnel: kpis.caPrevisionnel,
+      objectif:       objectifCA,
+      color:          '#3b82f6',
+    }
+  }, [isCA, session, objectif, kpis])
 
   // Gestion objectifs
   function handleSaveObjectifs(data) {
@@ -161,8 +173,13 @@ export default function BudgetPrevisionnelPage() {
       {/* KPI cards */}
       <KpiCards kpis={kpis} objectifAnnuelCA={objectifAnnuelCA} />
 
-      {/* Jauges par secteur */}
-      <JaugeSecteur secteursData={secteursData} />
+      {/* Jauges par secteur (responsable uniquement) */}
+      {isResponsable && <JaugeSecteur secteursData={secteursData} />}
+
+      {/* Jauge personnelle CA */}
+      {jaugePersonnelle && (
+        <JaugeSecteur secteursData={[jaugePersonnelle]} />
+      )}
 
       {/* Graphiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-6 pb-4">
