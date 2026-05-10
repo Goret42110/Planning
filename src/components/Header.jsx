@@ -73,7 +73,8 @@ export default function Header() {
             <select
               value={selectedCA || ''}
               onChange={e => setSelectedCA(e.target.value || null)}
-              className="bg-white/10 border border-white/20 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-red-400 cursor-pointer"
+              className="bg-[#2A2A3E] border border-white/20 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-red-400 cursor-pointer"
+              style={{ colorScheme: 'dark' }}
             >
               <option value="">Tous les CA</option>
               {cas.map(ca => (

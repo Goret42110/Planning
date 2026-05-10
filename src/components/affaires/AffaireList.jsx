@@ -26,7 +26,7 @@ const FILTRES = [
 ]
 
 export default function AffaireList() {
-  const { affaires, personnel, deleteAffaire, selectedCA } = useApp()
+  const { affaires, personnel, deleteAffaire, selectedCA, caIdEffectif } = useApp()
   const { session } = useAuth()
   const isAdmin = session?.role === 'responsable'
   const [search, setSearch]     = useState('')
@@ -35,6 +35,8 @@ export default function AffaireList() {
   const [creating, setCreating] = useState(false)
 
   const filtered = affaires.filter(a => {
+    // CA/ACA : restreindre à leurs propres affaires
+    if (caIdEffectif && a.caId !== caIdEffectif) return false
     if (selectedCA && a.caId !== selectedCA) return false
     if (filtre !== 'all' && a.statut !== filtre) return false
     if (!search) return true

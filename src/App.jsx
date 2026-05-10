@@ -21,19 +21,17 @@ export function AppProvider({ children }) {
   const [selectedCA, setSelectedCA] = useState(null)
   const [personTypeFilter, setPersonTypeFilter] = useState('all')
 
-  // Affaires filtrées selon le rôle : un CA ne voit que ses propres affaires
-  const affairesFiltrees = useMemo(() => {
-    if (session?.role === 'ca' || session?.role === 'aca') {
-      const caId = session.role === 'aca' ? session.caId : session.id
-      if (caId) return appData.affaires.filter(a => a.caId === caId)
-    }
-    return appData.affaires
-  }, [appData.affaires, session])
+  // caIdEffectif : id du CA connecté (ou CA rattaché pour ACA), null sinon
+  const caIdEffectif = useMemo(() => {
+    if (session?.role === 'ca')  return session.id
+    if (session?.role === 'aca') return session.caId || null
+    return null
+  }, [session])
 
   if (appData.syncing) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <div className="w-8 h-8 border-2 border-[#E31E24] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         <p className="text-slate-500 text-sm">Chargement des données…</p>
       </div>
     </div>
@@ -42,7 +40,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       ...appData,
-      affaires: affairesFiltrees,
+      caIdEffectif,
       selectedCA,
       setSelectedCA,
       personTypeFilter,

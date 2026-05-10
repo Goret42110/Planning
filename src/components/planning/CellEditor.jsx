@@ -7,7 +7,7 @@ import { getCellSlots, packSlots, isSpecialId } from '../../utils/slots'
 const CODES = Object.entries(SPECIAL_CODES).map(([code, info]) => ({ code, ...info }))
 
 export default function CellEditor({ value, position, onClose, onSelect, commentKey, comment, onCommentChange }) {
-  const { affaires, selectedCA } = useApp()
+  const { affaires, selectedCA, caIdEffectif } = useApp()
   const { session } = useAuth()
   const ref = useRef(null)
   const [search, setSearch] = useState('')
@@ -30,7 +30,7 @@ export default function CellEditor({ value, position, onClose, onSelect, comment
   const activeAffaires = affaires.filter(a => {
     if (a.statut !== 'active') return false
     if (selectedCA && a.caId !== selectedCA) return false
-    if (session?.role === 'ca' && a.caId !== session.id) return false
+    if (caIdEffectif && a.caId !== caIdEffectif) return false
     return true
   })
 
