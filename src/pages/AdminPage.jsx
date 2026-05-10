@@ -7,15 +7,16 @@ import { getItem, setItem } from '../lib/supabaseStorage'
 
 const LS_USERS_KEY = 'els_utilisateurs'
 
-const AUTH_ROLES     = ['aucun', 'responsable', 'ca', 'technicien']
+const AUTH_ROLES     = ['aucun', 'responsable', 'ca', 'aca', 'technicien']
 const PLANNING_ROLES = ['CA', 'TECH', 'RS']
 const TYPES          = ['ELS', 'Intérimaire', 'Sous-traitant']
 
-const AUTH_ROLE_LABELS = { aucun: 'Aucun accès', responsable: 'Responsable', ca: 'CA', technicien: 'Technicien' }
+const AUTH_ROLE_LABELS = { aucun: 'Aucun accès', responsable: 'Responsable', ca: 'CA', aca: 'ACA', technicien: 'Technicien' }
 const AUTH_ROLE_CLS    = {
   aucun:       'bg-slate-100 text-slate-400',
   responsable: 'bg-blue-100 text-blue-700',
   ca:          'bg-amber-100 text-amber-700',
+  aca:         'bg-purple-100 text-purple-700',
   technicien:  'bg-green-100 text-green-700',
 }
 
@@ -69,12 +70,10 @@ export default function AdminPage() {
       const exists = prev.find(u => u.id === person.id)
       let next
       if (role === 'aucun') {
-        // Retirer l'accès
         next = prev.filter(u => u.id !== person.id)
       } else if (exists) {
         next = prev.map(u => u.id === person.id ? { ...u, role } : u)
       } else {
-        // Créer un nouvel accès
         const identifiant = genIdentifiant(person.prenom, person.nom)
         next = [...prev, {
           id: person.id,
@@ -84,8 +83,18 @@ export default function AdminPage() {
           motDePasse: '123456',
           role,
           serviceId: person.serviceId || 'energie',
+          caId: null,
         }]
       }
+      saveUsers(next)
+      return next
+    })
+    setSaved(true)
+  }
+
+  function updateAcaCA(userId, caId) {
+    setUsers(prev => {
+      const next = prev.map(u => u.id === userId ? { ...u, caId: caId || null } : u)
       saveUsers(next)
       return next
     })
@@ -206,6 +215,7 @@ export default function AdminPage() {
                         <th className="px-4 py-2.5 w-14">Type</th>
                         <th className="px-4 py-2.5 w-36">Accès application</th>
                         <th className="px-4 py-2.5 w-32">Identifiant</th>
+                        <th className="px-4 py-2.5 w-36">CA rattaché (ACA)</th>
                         <th className="px-4 py-2.5 w-28">Rôle planning</th>
                         <th className="px-4 py-2.5 w-28">Qualification</th>
                         <th className="px-4 py-2.5 w-16">Actif</th>
@@ -221,10 +231,12 @@ export default function AdminPage() {
                         return (
                           <PersonnelRow key={person.id}
                             person={person} user={user} role={role} isLast={isLast}
+                            caList={personnel.filter(p => p.role === 'CA')}
                             onRoleChange={r => updateAuthRole(person, r)}
                             onIdentifiantChange={val => updateIdentifiant(person.id, val)}
                             onPasswordChange={pwd => updatePassword(person.id, pwd)}
                             onPlanningChange={(field, val) => updatePlanningField(person.id, field, val)}
+                            onAcaCAChange={caId => updateAcaCA(person.id, caId)}
                           />
                         )
                       })}
@@ -251,7 +263,7 @@ export default function AdminPage() {
 }
 
 // ── Ligne personnel planning ──────────────────────────────────────────────────
-function PersonnelRow({ person, user, role, isLast, onRoleChange, onIdentifiantChange, onPasswordChange, onPlanningChange }) {
+function PersonnelRow({ person, user, role, isLast, caList, onRoleChange, onIdentifiantChange, onPasswordChange, onPlanningChange, onAcaCAChange }) {
   return (
     <tr className={`${!isLast ? 'border-b border-slate-100' : ''} hover:bg-slate-50`}>
       {/* Nom */}
@@ -288,6 +300,22 @@ function PersonnelRow({ person, user, role, isLast, onRoleChange, onIdentifiantC
           ? <IdentifiantCell value={user.identifiant} onSave={onIdentifiantChange} />
           : <span className="text-xs text-slate-300 italic">auto à la création</span>
         }
+      </td>
+
+      {/* CA rattaché — visible uniquement pour ACA */}
+      <td className="px-4 py-3">
+        {role === 'aca' ? (
+          <select value={user?.caId || ''}
+            onChange={e => onAcaCAChange(e.target.value)}
+            className="text-xs border border-purple-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-purple-400">
+            <option value="">— Choisir un CA —</option>
+            {caList.map(ca => (
+              <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom}</option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
       </td>
 
       {/* Rôle planning */}
@@ -349,6 +377,7 @@ function AuthOnlyRow({ user, isLast, onRoleChange, onIdentifiantChange, onPasswo
       <td className="px-4 py-3">
         <IdentifiantCell value={user.identifiant} onSave={onIdentifiantChange} />
       </td>
+      <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
       <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
       <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>
       <td className="px-4 py-3"><span className="text-xs text-slate-300">—</span></td>

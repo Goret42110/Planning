@@ -39,7 +39,7 @@ export default function LoginPage() {
       setErreur('Identifiant ou mot de passe incorrect.')
       return
     }
-    login({ id: user.id, prenom: user.prenom, nom: user.nom, role: user.role, serviceId: user.serviceId })
+    login({ id: user.id, prenom: user.prenom, nom: user.nom, role: user.role, serviceId: user.serviceId, caId: user.caId || null })
     if (user.role === 'technicien') navigate(`/technicien/${user.id}`, { replace: true })
     else navigate('/planning', { replace: true })
   }

@@ -26,7 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RoleRedirect />} />
 
-            <Route element={<ProtectedRoute roles={['responsable', 'ca']} />}>
+            <Route element={<ProtectedRoute roles={['responsable', 'ca', 'aca']} />}>
               <Route path="/planning" element={<App />} />
             </Route>
 

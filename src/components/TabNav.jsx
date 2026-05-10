@@ -1,18 +1,25 @@
+import { useAuth } from '../context/AuthContext'
+
 const TABS = [
-  { id: 'planning',    label: 'Planning'       },
-  { id: 'gantt',       label: '📅 Gantt'       },
-  { id: 'personnel',   label: 'Personnel'      },
-  { id: 'affaires',    label: 'Affaires'       },
-  { id: 'charge',      label: 'Charge globale' },
-  { id: 'recap',       label: 'Récap'          },
-  { id: 'recapheures', label: '⏱ Heures'      },
-  { id: 'budget',      label: '📊 Budget'      },
+  { id: 'planning',    label: 'Planning',        roles: null },
+  { id: 'gantt',       label: '📅 Gantt',        roles: null },
+  { id: 'personnel',   label: 'Personnel',       roles: null },
+  { id: 'affaires',    label: 'Affaires',        roles: null },
+  { id: 'charge',      label: 'Charge globale',  roles: null },
+  { id: 'recap',       label: 'Récap',           roles: null },
+  { id: 'recapheures', label: '⏱ Heures',       roles: null },
+  { id: 'budget',      label: '📊 Budget',       roles: ['responsable', 'ca'] },
 ]
 
 export default function TabNav({ activeTab, setActiveTab }) {
+  const { session } = useAuth()
+  const role = session?.role
+
+  const visibleTabs = TABS.filter(t => !t.roles || t.roles.includes(role))
+
   return (
     <nav className="bg-white border-b border-slate-200 px-4 flex shrink-0 shadow-sm">
-      {TABS.map(tab => (
+      {visibleTabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
