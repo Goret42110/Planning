@@ -8,10 +8,37 @@ function getAuthUsers() {
   return BASE_USERS
 }
 
+function ElsLogo() {
+  return (
+    <div className="flex items-center gap-2 select-none">
+      {/* Cercle ELS — inspiré du logo */}
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="17" fill="#2A2A3E" stroke="#E31E24" strokeWidth="1.5"/>
+        {/* Segments gris */}
+        <path d="M18 4 A14 14 0 0 1 30 11 L18 18 Z" fill="#9B9B9B" opacity="0.6"/>
+        <path d="M30 11 A14 14 0 0 1 30 25 L18 18 Z" fill="#9B9B9B" opacity="0.4"/>
+        <path d="M18 18 L6 11 A14 14 0 0 1 18 4 Z" fill="#9B9B9B" opacity="0.3"/>
+        {/* Cercle central blanc */}
+        <circle cx="18" cy="18" r="6" fill="#1C1C2E"/>
+        {/* Texte "e" stylisé */}
+        <text x="18" y="22" textAnchor="middle" fill="#E31E24" fontSize="9" fontWeight="700" fontFamily="Poppins,sans-serif">e</text>
+      </svg>
+      <div>
+        <div className="leading-none">
+          <span className="text-[#E31E24] font-bold text-lg tracking-tight">els</span>
+          <span className="text-white font-light text-lg tracking-tight"> planning</span>
+        </div>
+        <div className="text-[10px] text-white/40 font-light tracking-widest uppercase leading-none mt-0.5">by Genesienne</div>
+      </div>
+    </div>
+  )
+}
+
 const ROLE_LABELS = {
-  responsable: { label: 'Responsable', cls: 'bg-blue-900 text-blue-200 border-blue-700' },
-  ca:          { label: 'Chargé d\'affaires', cls: 'bg-amber-900 text-amber-200 border-amber-700' },
-  technicien:  { label: 'Technicien', cls: 'bg-slate-700 text-slate-300 border-slate-600' },
+  responsable: { label: 'Responsable', bg: 'bg-red-900/40 text-red-300 border-red-700/50' },
+  ca:          { label: 'Chargé d\'affaires', bg: 'bg-amber-900/40 text-amber-300 border-amber-700/50' },
+  aca:         { label: 'ACA', bg: 'bg-purple-900/40 text-purple-300 border-purple-700/50' },
+  technicien:  { label: 'Technicien', bg: 'bg-slate-700/60 text-slate-300 border-slate-600/50' },
 }
 
 export default function Header() {
@@ -32,30 +59,21 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 px-5 py-2.5 flex items-center justify-between shrink-0">
+    <header className="h-14 bg-[#1C1C2E] border-b border-white/10 px-5 flex items-center justify-between shrink-0 shadow-lg">
       {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M13 3L5 14h8l-2 7 9-11h-8l2-7z" fill="#1e3a5f" strokeWidth="0.5"/>
-          </svg>
-        </div>
-        <div>
-          <div className="text-white font-bold text-sm leading-none">ELS Énergie</div>
-          <div className="text-slate-400 text-xs">Electro Loire Services</div>
-        </div>
-      </div>
+      <ElsLogo />
 
       {/* Right side */}
-      <div className="flex items-center gap-4">
-        {/* CA filter — visible pour tous */}
-        {cas.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-xs">Vue CA :</span>
+      <div className="flex items-center gap-3">
+
+        {/* Filtre CA — responsable uniquement */}
+        {session?.role === 'responsable' && cas.length > 0 && (
+          <div className="flex items-center gap-2 mr-2">
+            <span className="text-white/40 text-xs hidden sm:block">Vue :</span>
             <select
               value={selectedCA || ''}
               onChange={e => setSelectedCA(e.target.value || null)}
-              className="bg-slate-800 border border-slate-600 text-slate-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-400"
+              className="bg-white/10 border border-white/20 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-red-400 cursor-pointer"
             >
               <option value="">Tous les CA</option>
               {cas.map(ca => (
@@ -65,38 +83,44 @@ export default function Header() {
           </div>
         )}
 
-        {/* User info */}
+        {/* Séparateur */}
+        <div className="h-6 w-px bg-white/15" />
+
+        {/* User */}
         {session && (
-          <div className="flex items-center gap-2.5 pl-4 border-l border-slate-700">
-            <div className="w-7 h-7 rounded-full bg-blue-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
-              {session.prenom[0]}{session.nom[0]}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#E31E24] flex items-center justify-center text-white text-xs font-bold shrink-0 shadow">
+              {(session.prenom?.[0] || '?')}{(session.nom?.[0] || '?')}
             </div>
-            <div className="leading-tight">
-              <div className="text-slate-200 text-sm font-medium">{session.prenom} {session.nom}</div>
-              <div className={`text-xs px-1.5 py-0.5 rounded border font-medium inline-block ${roleInfo.cls}`}>
+            <div className="leading-tight hidden sm:block">
+              <div className="text-white text-xs font-medium">{session.prenom} {session.nom}</div>
+              <div className={`text-[10px] px-1.5 py-px rounded border font-medium inline-block ${roleInfo.bg}`}>
                 {roleInfo.label}
               </div>
             </div>
-            {session?.role === 'responsable' && (
-              <Link to="/admin"
-                className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors">
-                ⚙ Admin
-              </Link>
-            )}
-            {session?.role === 'ca' && (
-              <Link to="/ca"
-                className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors">
-                📱 Mobile
-              </Link>
-            )}
-            <button
-              onClick={handleLogout}
-              className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              Déconnexion
-            </button>
           </div>
         )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 ml-1">
+          {session?.role === 'responsable' && (
+            <Link to="/admin"
+              className="text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/25 px-3 py-1.5 rounded-lg transition-all font-medium">
+              ⚙ Admin
+            </Link>
+          )}
+          {session?.role === 'ca' && (
+            <Link to="/ca"
+              className="text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/25 px-3 py-1.5 rounded-lg transition-all">
+              📱
+            </Link>
+          )}
+          <button
+            onClick={handleLogout}
+            className="text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/25 px-3 py-1.5 rounded-lg transition-all font-medium">
+            Déconnexion
+          </button>
+        </div>
       </div>
     </header>
   )

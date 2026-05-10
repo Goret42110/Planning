@@ -1,34 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --els-red:    #E31E24;
+  --els-red-dk: #B81519;
+  --els-gray:   #9B9B9B;
+  --els-dark:   #1C1C2E;
+  --els-dark2:  #2A2A3E;
+}
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: #f8fafc;
+  background: #F4F5F7;
   color: #1e293b;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
 }
 
-::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 ::-webkit-scrollbar-corner { background: #f1f5f9; }
 
 @layer components {
   .input-dark {
-    @apply bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2;
-    @apply focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30;
+    @apply bg-white border border-slate-200 text-slate-900 rounded-lg px-3 py-2;
+    @apply focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400/20;
     @apply placeholder-slate-400 transition-colors;
   }
   .btn-primary {
-    @apply px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors;
+    @apply px-4 py-2 text-white rounded-lg text-sm font-semibold transition-all shadow-sm;
+    background: var(--els-red);
+  }
+  .btn-primary:hover {
+    background: var(--els-red-dk);
+    @apply shadow-md;
   }
   .btn-ghost {
     @apply px-4 py-2 text-slate-500 hover:text-slate-900 rounded-lg text-sm transition-colors;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-slate-100;
   }
   .card-dark {
     @apply bg-white border border-slate-200 rounded-xl;
