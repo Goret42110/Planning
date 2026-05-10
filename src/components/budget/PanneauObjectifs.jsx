@@ -54,13 +54,19 @@ export default function PanneauObjectifs({ open, onClose, fiscalYear, objectif, 
   }
 
   function setCA(caId, key, val) {
-    setLocal(prev => ({
-      ...prev,
-      ca: {
-        ...prev.ca,
-        [caId]: { ...(prev.ca?.[caId] || {}), [key]: val },
-      },
-    }))
+    setLocal(prev => {
+      const newCa = { ...prev.ca, [caId]: { ...(prev.ca?.[caId] || {}), [key]: val } }
+      // Recalcul automatique des objectifs secteur depuis la somme des CA
+      const newSecteurs = { ...prev.secteurs }
+      const services = ['energie', 'petrole']
+      services.forEach(svc => {
+        const sum = caList
+          .filter(ca => (ca.serviceId || 'energie') === svc)
+          .reduce((s, ca) => s + (parseFloat(newCa[ca.id]?.ca) || 0), 0)
+        newSecteurs[svc] = { ...(newSecteurs[svc] || {}), ca: sum }
+      })
+      return { ...prev, ca: newCa, secteurs: newSecteurs }
+    })
   }
 
   function handleSave() {
@@ -113,20 +119,17 @@ export default function PanneauObjectifs({ open, onClose, fiscalYear, objectif, 
             unit="h"
           />
 
-          {/* Par secteur */}
-          <SectionTitle>Par secteur</SectionTitle>
-          <NumInput
-            label="CA Energie"
-            value={local.secteurs?.energie?.ca}
-            onChange={v => setSecteur('energie', 'ca', v)}
-            unit="€"
-          />
-          <NumInput
-            label="CA Pétrole"
-            value={local.secteurs?.petrole?.ca}
-            onChange={v => setSecteur('petrole', 'ca', v)}
-            unit="€"
-          />
+          {/* Par secteur — calculé automatiquement depuis la somme des CA */}
+          <SectionTitle>Par secteur (calculé automatiquement)</SectionTitle>
+          <div className="text-xs text-slate-400 italic mb-2">Mise à jour automatique depuis les objectifs CA ci-dessous.</div>
+          {[{ id: 'energie', label: 'Énergie' }, { id: 'petrole', label: 'Pétrole' }].map(s => (
+            <div key={s.id} className="flex items-center justify-between gap-3 py-1.5">
+              <span className="text-xs text-slate-600">{s.label}</span>
+              <span className="text-xs font-semibold text-slate-800 bg-slate-100 px-3 py-1.5 rounded w-28 text-right">
+                {(local.secteurs?.[s.id]?.ca || 0).toLocaleString('fr-FR')} €
+              </span>
+            </div>
+          ))}
 
           {/* Par CA */}
           {caList && caList.length > 0 && (

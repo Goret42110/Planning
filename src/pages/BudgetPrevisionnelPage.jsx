@@ -8,6 +8,7 @@ import KpiCards from '../components/budget/KpiCards'
 import CourbeCharge from '../components/budget/CourbeCharge'
 import CourbeCA from '../components/budget/CourbeCA'
 import JaugeCA from '../components/budget/JaugeCA'
+import JaugeSecteur from '../components/budget/JaugeSecteur'
 import TableauMensuel from '../components/budget/TableauMensuel'
 import PanneauObjectifs from '../components/budget/PanneauObjectifs'
 
@@ -95,6 +96,27 @@ export default function BudgetPrevisionnelPage() {
       })
   }, [filtres.vue, filtres.filtreService, filtres.probMin, filtreCAEffectif, caList, affaires, objectif])
 
+  // Données par secteur pour la jauge
+  const secteursData = useMemo(() => {
+    const SECTEURS = [
+      { id: 'energie', label: 'Énergie',  color: '#3b82f6' },
+      { id: 'petrole', label: 'Pétrole',  color: '#f97316' },
+    ]
+    return SECTEURS.map(s => {
+      const caIds = personnel.filter(p => (p.serviceId || 'energie') === s.id && (p.role === 'CA' || p.role === 'RS')).map(p => p.id)
+      const affairesSvc = affaires.filter(a => {
+        if (!caIds.includes(a.caId)) return false
+        const prob = parseFloat(a.probabilite) || 0
+        if (prob < (filtres.probMin || 0)) return false
+        return true
+      })
+      const caValide       = Math.round(affairesSvc.filter(a => parseFloat(a.probabilite) === 100).reduce((sum, a) => sum + (parseFloat(a.montantHT) || 0), 0))
+      const caPrevisionnel = Math.round(affairesSvc.reduce((sum, a) => sum + (parseFloat(a.montantHT) || 0) * ((parseFloat(a.probabilite) || 0) / 100), 0))
+      const objectifSvc    = parseFloat(objectif?.secteurs?.[s.id]?.ca) || 0
+      return { ...s, caValide, caPrevisionnel, objectif: objectifSvc }
+    })
+  }, [personnel, affaires, filtres.probMin, objectif])
+
   // Gestion objectifs
   function handleSaveObjectifs(data) {
     setExercice(fiscalYear, data)
@@ -138,6 +160,9 @@ export default function BudgetPrevisionnelPage() {
 
       {/* KPI cards */}
       <KpiCards kpis={kpis} objectifAnnuelCA={objectifAnnuelCA} />
+
+      {/* Jauges par secteur */}
+      <JaugeSecteur secteursData={secteursData} />
 
       {/* Graphiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-6 pb-4">
