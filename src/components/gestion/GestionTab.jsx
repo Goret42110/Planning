@@ -111,7 +111,12 @@ export default function GestionTab() {
 
   const caList = useMemo(() => personnel.filter(p => p.role === 'CA' || p.role === 'RS'), [personnel])
 
-  const [moisActif,   setMoisActif]   = useState(() => new Date().toISOString().slice(0, 7).slice(0, 7))
+  const [moisActif,   setMoisActif]   = useState(() => {
+    // Défaut : mois précédent (les imports sont généralement du mois passé)
+    const d = new Date()
+    d.setMonth(d.getMonth() - 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
   const [filtreCA,    setFiltreCA]    = useState(caIdEffectif || '')
   const [search,      setSearch]      = useState('')
   const [importing,   setImporting]   = useState(false)
@@ -199,10 +204,16 @@ export default function GestionTab() {
   // ── Collecte des mois disponibles ──────────────────────────────────────────
   const moisDisponibles = useMemo(() => {
     const s = new Set()
+    // Ajouter les mois depuis les données importées
     for (const a of affaires) {
       if (a._finance?.importedMois) s.add(a._finance.importedMois)
       if (a._gestion) Object.keys(a._gestion).forEach(m => s.add(m))
     }
+    // Toujours inclure le mois précédent et le mois courant
+    const now  = new Date()
+    const prev = new Date(now); prev.setMonth(prev.getMonth() - 1)
+    s.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+    s.add(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`)
     return [...s].sort((a, b) => b.localeCompare(a))
   }, [affaires])
 
