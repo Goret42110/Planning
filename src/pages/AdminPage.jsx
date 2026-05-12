@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import { useApp } from '../App'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
 import { getItem, setItem } from '../lib/supabaseStorage'
-import SuiviAffaires from '../components/admin/SuiviAffaires'
 
 const LS_USERS_KEY = 'els_utilisateurs'
 
@@ -54,7 +53,6 @@ export default function AdminPage() {
   const navigate      = useNavigate()
   const { personnel, updatePerson } = useApp()
 
-  const [activeTab, setActiveTab] = useState('personnel')
   const [users,  setUsers]  = useState(loadUsers)
   const [saved,  setSaved]  = useState(false)
   const [search, setSearch] = useState('')
@@ -180,33 +178,6 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* Onglets */}
-      <nav className="bg-white border-b border-slate-200 px-6 flex shrink-0 shadow-sm">
-        {[
-          { id: 'personnel', label: '👷 Personnel & Accès' },
-          { id: 'suivi',     label: '📋 Suivi des affaires' },
-        ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`relative px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === tab.id ? 'text-[#E31E24]' : 'text-slate-500 hover:text-slate-800'
-            }`}>
-            {tab.label}
-            {activeTab === tab.id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E31E24] rounded-t-full" />
-            )}
-          </button>
-        ))}
-      </nav>
-
-      {/* Onglet Suivi */}
-      {activeTab === 'suivi' && (
-        <div className="flex-1 overflow-hidden" style={{ height: 'calc(100vh - 112px)' }}>
-          <SuiviAffaires />
-        </div>
-      )}
-
-      {/* Onglet Personnel */}
-      {activeTab === 'personnel' && (
       <div className="flex-1 overflow-y-auto">
       <div className="max-w-6xl mx-auto px-6 py-6">
         {saved && (
@@ -287,7 +258,6 @@ export default function AdminPage() {
         </div>
       </div>
       </div>
-      )}
     </div>
   )
 }
