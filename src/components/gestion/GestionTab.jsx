@@ -187,10 +187,9 @@ export default function GestionTab() {
   // ── Affaires filtrées ───────────────────────────────────────────────────────
   const affairesFiltrees = useMemo(() => {
     return affaires.filter(a => {
+      if (a.statut === 'terminée' || a.statut === 'perdue') return false
       if (caIdEffectif && a.caId !== caIdEffectif) return false
       if (filtreCA      && a.caId !== filtreCA)      return false
-      // Avoir des données gestion pour le mois actif OU des données financières
-      if (!a._finance && !a._gestion) return false
       if (search) {
         const q = search.toLowerCase()
         return a.numero.toLowerCase().includes(q)
@@ -199,7 +198,7 @@ export default function GestionTab() {
       }
       return true
     })
-  }, [affaires, caIdEffectif, filtreCA, search, moisActif])
+  }, [affaires, caIdEffectif, filtreCA, search])
 
   // ── Collecte des mois disponibles ──────────────────────────────────────────
   const moisDisponibles = useMemo(() => {
