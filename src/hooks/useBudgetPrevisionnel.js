@@ -54,48 +54,67 @@ function overlapDays(start, end, year, month) {
 }
 
 /**
- * Répartit les valeurs d'une affaire linéairement par jours sur les mois qui se chevauchent
- * avec [dateDebut, dateFin].
- * Retourne { [monthKey]: { heures, ca, heuresPondees, caPondere, caValide, heuresValides } }
+ * Répartit les valeurs d'une affaire sur les mois fiscaux.
+ * - Si repartitionMensuelle est définie → utilise les % personnalisés
+ * - Sinon → distribution linéaire par jours (comportement original)
  */
 function distributeAffaire(affaire, fiscalMonths) {
-  const { dateDebut, dateFin, heuresPrevues, montantHT, probabilite } = affaire
+  const { dateDebut, dateFin, heuresPrevues, montantHT, probabilite, repartitionMensuelle } = affaire
 
   if (!dateDebut || !dateFin) return {}
 
   const start = new Date(dateDebut)
-  const end = new Date(dateFin)
-
+  const end   = new Date(dateFin)
   if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return {}
 
+  const heures   = parseFloat(heuresPrevues) || 0
+  const ca       = parseFloat(montantHT)     || 0
+  const prob     = parseFloat(probabilite)   || 0
+  const isValide = prob === 100
+  const result   = {}
+
+  // ── Répartition personnalisée ──────────────────────────────────────────────
+  if (repartitionMensuelle && Object.keys(repartitionMensuelle).length > 0) {
+    const total = Object.values(repartitionMensuelle).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+    if (total > 0) {
+      for (const fm of fiscalMonths) {
+        const pct = parseFloat(repartitionMensuelle[fm.key]) || 0
+        if (pct <= 0) continue
+        const ratio      = pct / total // normalise si total ≠ 100
+        const heuresMois = heures * ratio
+        const caMois     = ca     * ratio
+        result[fm.key]   = {
+          heures:       heuresMois,
+          ca:           caMois,
+          heuresPondees: heuresMois * (prob / 100),
+          caPondere:     caMois     * (prob / 100),
+          caValide:      isValide ? caMois     : 0,
+          heuresValides: isValide ? heuresMois : 0,
+        }
+      }
+      return result
+    }
+  }
+
+  // ── Distribution linéaire par jours (par défaut) ───────────────────────────
   const totalDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
   if (totalDays <= 0) return {}
-
-  const heures = parseFloat(heuresPrevues) || 0
-  const ca = parseFloat(montantHT) || 0
-  const prob = parseFloat(probabilite) || 0
-  const isValide = prob === 100
-
-  const result = {}
 
   for (const fm of fiscalMonths) {
     const days = overlapDays(start, end, fm.year, fm.month)
     if (days <= 0) continue
-
-    const ratio = days / totalDays
+    const ratio      = days / totalDays
     const heuresMois = heures * ratio
-    const caMois = ca * ratio
-
-    result[fm.key] = {
-      heures: heuresMois,
-      ca: caMois,
+    const caMois     = ca     * ratio
+    result[fm.key]   = {
+      heures:       heuresMois,
+      ca:           caMois,
       heuresPondees: heuresMois * (prob / 100),
-      caPondere: caMois * (prob / 100),
-      caValide: isValide ? caMois : 0,
+      caPondere:     caMois     * (prob / 100),
+      caValide:      isValide ? caMois     : 0,
       heuresValides: isValide ? heuresMois : 0,
     }
   }
-
   return result
 }
 
