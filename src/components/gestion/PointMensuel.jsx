@@ -158,22 +158,25 @@ function AffaireCard({ numero, affaire, onUpdate }) {
   )
 }
 
-export default function PointMensuel({ getMoisCA, moisDisponibles, updateAffaire, caList }) {
+export default function PointMensuel({ getMoisCA, moisDisponibles, updateAffaire, caList, forcedCaId, isResponsable }) {
   const [mois,      setMois]      = useState(moisDisponibles[0] || '')
-  const [caId,      setCaId]      = useState('')
+  const [caId,      setCaId]      = useState(forcedCaId || '')
   const [search,    setSearch]    = useState('')
   const [filtre,    setFiltre]    = useState('all') // all | a-voir | alerte
 
+  const caIdEffectif = forcedCaId || caId
+
   const caInitiales = useMemo(() => {
-    const ca = caList?.find(c => c.id === caId)
+    const ca = caList?.find(c => c.id === caIdEffectif)
     return ca ? (ca.prenom[0] + ca.nom[0]).toUpperCase() : ''
-  }, [caId, caList])
+  }, [caIdEffectif, caList])
 
   const moisData = getMoisCA(mois, caInitiales)
   const affaires = moisData?.affaires || {}
 
   const filtered = useMemo(() => {
     return Object.entries(affaires).filter(([num, a]) => {
+
       if (filtre === 'a-voir'  && a.pointFait) return false
       if (filtre === 'alerte'  && a.marge >= 0 && a.heuresRealisees <= a.heuresPrevues * 1.1) return false
       if (search) {
@@ -200,7 +203,7 @@ export default function PointMensuel({ getMoisCA, moisDisponibles, updateAffaire
   return (
     <div className="space-y-5">
       {/* Sélecteurs */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <select value={mois} onChange={e => setMois(e.target.value)}
           className="border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#E31E24]">
           {moisDisponibles.length === 0 && <option value="">Aucun import disponible</option>}
@@ -209,13 +212,25 @@ export default function PointMensuel({ getMoisCA, moisDisponibles, updateAffaire
           ))}
         </select>
 
-        <select value={caId} onChange={e => setCaId(e.target.value)}
-          className="border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#E31E24]">
-          <option value="">— Sélectionner un CA —</option>
-          {caList?.map(ca => (
-            <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom}</option>
-          ))}
-        </select>
+        {/* Sélecteur CA — visible uniquement pour le responsable */}
+        {isResponsable ? (
+          <select value={caId} onChange={e => setCaId(e.target.value)}
+            className="border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#E31E24]">
+            <option value="">— Sélectionner un CA —</option>
+            {caList?.map(ca => (
+              <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom}</option>
+            ))}
+          </select>
+        ) : (
+          /* Pour un CA : affiche son nom, pas de sélecteur */
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl text-sm text-slate-600 font-medium">
+            <span className="w-6 h-6 rounded-full bg-[#E31E24] text-white text-xs font-bold flex items-center justify-center">
+              {caList?.find(c => c.id === forcedCaId)?.prenom?.[0]}
+              {caList?.find(c => c.id === forcedCaId)?.nom?.[0]}
+            </span>
+            {caList?.find(c => c.id === forcedCaId)?.prenom} {caList?.find(c => c.id === forcedCaId)?.nom}
+          </div>
+        )}
 
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Rechercher…"

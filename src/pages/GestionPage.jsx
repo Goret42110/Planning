@@ -141,7 +141,11 @@ export default function GestionPage() {
       <div className="flex-1 overflow-y-auto p-6">
         {activeTab === 'import' && (
           <div className="max-w-3xl mx-auto">
-            <ImportExcel onImport={handleImport} caList={caList} />
+            <ImportExcel
+              onImport={handleImport}
+              caList={caList}
+              forcedCaId={isCA ? session?.id : null}
+            />
           </div>
         )}
         {activeTab === 'point' && (
@@ -151,6 +155,8 @@ export default function GestionPage() {
               moisDisponibles={moisDisponibles}
               updateAffaire={updateAffaire}
               caList={caList}
+              forcedCaId={isCA ? session?.id : null}
+              isResponsable={isResponsable}
             />
           </div>
         )}

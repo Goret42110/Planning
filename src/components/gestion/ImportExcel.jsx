@@ -101,12 +101,12 @@ function fmtMois(mois) {
   return `${MONTHS_FR[parseInt(m) - 1]} ${y}`
 }
 
-export default function ImportExcel({ onImport, caList }) {
+export default function ImportExcel({ onImport, caList, forcedCaId }) {
   const [step,        setStep]        = useState('upload') // upload | preview | done
   const [file,        setFile]        = useState(null)
   const [parsed,      setParsed]      = useState(null)
   const [mois,        setMois]        = useState('')
-  const [caId,        setCaId]        = useState('')
+  const [caId,        setCaId]        = useState(forcedCaId || '')
   const [error,       setError]       = useState('')
   const [loading,     setLoading]     = useState(false)
   const inputRef = useRef()
@@ -120,8 +120,8 @@ export default function ImportExcel({ onImport, caList }) {
       const result = await parseExcel(f)
       setParsed(result)
       setMois(detectMonthFromFilename(f.name))
-      // Auto-match CA par initiales
-      if (result.caInitiales && caList) {
+      // Si pas de CA forcé, auto-match par initiales
+      if (!forcedCaId && result.caInitiales && caList) {
         const found = caList.find(ca => {
           const initials = (ca.prenom[0] + ca.nom[0]).toUpperCase()
           return initials === result.caInitiales.toUpperCase()
@@ -189,13 +189,24 @@ export default function ImportExcel({ onImport, caList }) {
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
             CA <span className="text-slate-300 font-normal">(détecté : {parsed.caInitiales})</span>
           </div>
-          <select value={caId} onChange={e => setCaId(e.target.value)}
-            className="w-full border-2 border-slate-100 rounded-xl px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:border-[#E31E24]">
-            <option value="">— Sélectionner —</option>
-            {caList?.map(ca => (
-              <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom} ({(ca.prenom[0]+ca.nom[0]).toUpperCase()})</option>
-            ))}
-          </select>
+          {forcedCaId ? (
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl text-sm text-slate-700 font-medium">
+              <span className="w-6 h-6 rounded-full bg-[#E31E24] text-white text-xs font-bold flex items-center justify-center shrink-0">
+                {caList?.find(c => c.id === forcedCaId)?.prenom?.[0]}
+                {caList?.find(c => c.id === forcedCaId)?.nom?.[0]}
+              </span>
+              {caList?.find(c => c.id === forcedCaId)?.prenom} {caList?.find(c => c.id === forcedCaId)?.nom}
+              <span className="ml-auto text-xs text-slate-400">🔒</span>
+            </div>
+          ) : (
+            <select value={caId} onChange={e => setCaId(e.target.value)}
+              className="w-full border-2 border-slate-100 rounded-xl px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:border-[#E31E24]">
+              <option value="">— Sélectionner —</option>
+              {caList?.map(ca => (
+                <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom} ({(ca.prenom[0]+ca.nom[0]).toUpperCase()})</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
