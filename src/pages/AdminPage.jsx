@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useApp } from '../App'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
 import { getItem, setItem } from '../lib/supabaseStorage'
+import SuiviAffaires from '../components/admin/SuiviAffaires'
 
 const LS_USERS_KEY = 'els_utilisateurs'
 
@@ -53,6 +54,7 @@ export default function AdminPage() {
   const navigate      = useNavigate()
   const { personnel, updatePerson } = useApp()
 
+  const [activeTab, setActiveTab] = useState('personnel')
   const [users,  setUsers]  = useState(loadUsers)
   const [saved,  setSaved]  = useState(false)
   const [search, setSearch] = useState('')
@@ -154,32 +156,58 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F7' }}>
       {/* Header */}
-      <header className="bg-slate-900 border-b border-slate-800 px-5 py-3 flex items-center justify-between">
+      <header className="bg-[#1C1C2E] border-b border-white/10 px-5 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M13 3L5 14h8l-2 7 9-11h-8l2-7z" fill="#1e3a5f"/>
-            </svg>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#E31E24' }}>
+            <span className="text-white font-bold text-xs">ELS</span>
           </div>
           <div>
-            <div className="text-white font-bold text-sm">Administration — ELS Énergie</div>
-            <div className="text-slate-400 text-xs">Gestion des accès et des informations</div>
+            <div className="text-white font-semibold text-sm">Administration</div>
+            <div className="text-white/40 text-xs">ELS Énergie · Groupe Genesienne</div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button onClick={() => navigate('/planning')}
-            className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors">
+            className="text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-lg transition-all font-medium">
             ← Planning
           </button>
           <button onClick={handleLogout}
-            className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors">
+            className="text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-lg transition-all font-medium">
             Déconnexion
           </button>
         </div>
       </header>
 
+      {/* Onglets */}
+      <nav className="bg-white border-b border-slate-200 px-6 flex shrink-0 shadow-sm">
+        {[
+          { id: 'personnel', label: '👷 Personnel & Accès' },
+          { id: 'suivi',     label: '📋 Suivi des affaires' },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`relative px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === tab.id ? 'text-[#E31E24]' : 'text-slate-500 hover:text-slate-800'
+            }`}>
+            {tab.label}
+            {activeTab === tab.id && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E31E24] rounded-t-full" />
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {/* Onglet Suivi */}
+      {activeTab === 'suivi' && (
+        <div className="flex-1 overflow-hidden" style={{ height: 'calc(100vh - 112px)' }}>
+          <SuiviAffaires />
+        </div>
+      )}
+
+      {/* Onglet Personnel */}
+      {activeTab === 'personnel' && (
+      <div className="flex-1 overflow-y-auto">
       <div className="max-w-6xl mx-auto px-6 py-6">
         {saved && (
           <div className="mb-4 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
@@ -258,6 +286,8 @@ export default function AdminPage() {
           })}
         </div>
       </div>
+      </div>
+      )}
     </div>
   )
 }
