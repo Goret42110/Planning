@@ -58,6 +58,7 @@ export default function GestionPage() {
   const [activeTab, setActiveTab] = useState('point')
   const [keyError,  setKeyError]  = useState(false)
 
+  // Inclure les anciens CA (actif: false) pour les imports historiques
   const caList = useMemo(() => personnel.filter(p => p.role === 'CA' || p.role === 'RS'), [personnel])
 
   function handleEnterKey(k) {

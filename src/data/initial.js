@@ -11,7 +11,8 @@ export const INITIAL_PERSONNEL = [
   { id: 'ene_09', nom: 'PALHEC',          prenom: 'Olivier',   type: 'ELS', qualification: '', role: 'TECH', societe: '', actif: true, service: 'Energie',  serviceId: 'energie' },
   { id: 'ene_10', nom: 'RHOER',           prenom: 'Maïlys',    type: 'ELS', qualification: '', role: 'TECH', societe: '', actif: true, service: 'Energie',  serviceId: 'energie' },
   { id: 'ene_11', nom: 'VAZILLE',         prenom: 'Jérôme',    type: 'ELS', qualification: '', role: 'TECH', societe: '', actif: true, service: 'Energie',  serviceId: 'energie' },
-  { id: 'ene_12', nom: 'VICTORINO',       prenom: 'Yann',      type: 'ELS', qualification: 'CA', role: 'CA', societe: '', actif: true, service: 'Energie',  serviceId: 'energie' },
+  { id: 'ene_12', nom: 'VICTORINO',       prenom: 'Yann',      type: 'ELS', qualification: 'CA', role: 'CA', societe: '', actif: true,  service: 'Energie',  serviceId: 'energie' },
+  { id: 'ene_rb', nom: 'BAUMERT',         prenom: 'Romain',    type: 'ELS', qualification: 'CA', role: 'CA', societe: '', actif: false, service: 'Energie',  serviceId: 'energie' },
 
   // ── Service Pétrole ──────────────────────────────────────────────────────────
   { id: 'pet_01', nom: 'CHAPELON',        prenom: 'Christian', type: 'ELS', qualification: '', role: 'TECH', societe: '', actif: true, service: 'Pétrole',  serviceId: 'petrole' },
