@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import App, { AppProvider } from './App.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
+import GestionPage from './pages/GestionPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import TechnicienRoute from './components/TechnicienRoute.jsx'
 import CAMobileRoute from './components/ca/CAMobileRoute.jsx'
@@ -32,6 +33,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
             <Route element={<ProtectedRoute roles={['responsable']} />}>
               <Route path="/admin" element={<AdminPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute roles={['responsable', 'ca']} />}>
+              <Route path="/gestion" element={<GestionPage />} />
             </Route>
 
             <Route element={<ProtectedRoute roles={['ca', 'responsable']} />}>

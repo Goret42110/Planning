@@ -1,6 +1,7 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../App'
+import { useNetworkKey } from '../hooks/useNetworkKey'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
 
 function getAuthUsers() {
@@ -46,6 +47,7 @@ export default function Header() {
   const { personnel, selectedCA, setSelectedCA } = useApp()
   const navigate = useNavigate()
 
+  const { isGranted: networkGranted } = useNetworkKey()
   const planningCAs = personnel.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif)
   const authResp    = getAuthUsers()
     .filter(u => u.role === 'responsable' && !personnel.find(p => p.id === u.id))
@@ -104,6 +106,16 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 ml-1">
+          {(session?.role === 'responsable' || session?.role === 'ca') && (
+            <Link to="/gestion"
+              className={`text-xs border px-3 py-1.5 rounded-lg transition-all font-medium ${
+                networkGranted
+                  ? 'text-green-400 bg-green-400/10 border-green-400/20 hover:bg-green-400/20'
+                  : 'text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10'
+              }`}>
+              📊 Gestion
+            </Link>
+          )}
           {session?.role === 'responsable' && (
             <Link to="/admin"
               className="text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/25 px-3 py-1.5 rounded-lg transition-all font-medium">

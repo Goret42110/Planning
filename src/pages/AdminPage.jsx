@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useApp } from '../App'
 import { utilisateurs as BASE_USERS } from '../data/utilisateurs'
 import { getItem, setItem } from '../lib/supabaseStorage'
+import { useNetworkKey } from '../hooks/useNetworkKey'
 
 const LS_USERS_KEY = 'els_utilisateurs'
 
@@ -52,6 +53,9 @@ export default function AdminPage() {
   const { logout }    = useAuth()
   const navigate      = useNavigate()
   const { personnel, updatePerson } = useApp()
+
+  const { networkKey, setAdminKey } = useNetworkKey()
+  const [newNetKey, setNewNetKey] = useState('')
 
   const [users,  setUsers]  = useState(loadUsers)
   const [saved,  setSaved]  = useState(false)
@@ -185,6 +189,36 @@ export default function AdminPage() {
             ✓ Modifications enregistrées. Les changements de rôle prennent effet à la prochaine connexion.
           </div>
         )}
+
+        {/* Clé réseau */}
+        <div className="mb-6 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                🔐 Clé d'accès réseau <span className="text-xs font-normal text-slate-400">(module Gestion des affaires)</span>
+              </div>
+              <div className="text-xs text-slate-400 mt-0.5">
+                Partagez cette clé uniquement sur le réseau interne / VPN. Les CA et Responsables devront la saisir pour accéder à la gestion.
+              </div>
+            </div>
+            {networkKey && (
+              <span className="text-xs font-mono bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 shrink-0 ml-4">
+                {networkKey}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <input value={newNetKey} onChange={e => setNewNetKey(e.target.value)}
+              placeholder={networkKey ? 'Nouvelle clé…' : 'Définir une clé (ex: ELS-GESTION-2026)'}
+              className="flex-1 border-2 border-slate-100 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:border-[#E31E24] font-mono" />
+            <button onClick={() => { if (newNetKey.trim()) { setAdminKey(newNetKey.trim()); setNewNetKey(''); setSaved(true) } }}
+              disabled={!newNetKey.trim()}
+              className="px-4 py-2 text-sm font-semibold text-white rounded-xl disabled:opacity-40 transition-all"
+              style={{ background: '#E31E24' }}>
+              {networkKey ? 'Mettre à jour' : 'Définir la clé'}
+            </button>
+          </div>
+        </div>
 
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-xl font-bold text-slate-900">
