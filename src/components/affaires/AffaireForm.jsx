@@ -14,8 +14,9 @@ function getAuthUsers() {
 // Génère la liste des mois YYYY-MM entre deux dates
 function getMoisRange(dateDebut, dateFin) {
   if (!dateDebut || !dateFin) return []
-  const start = new Date(dateDebut + '-01')
-  const end   = new Date(dateFin.slice(0, 7) + '-01')
+  // Extraire uniquement YYYY-MM des dates complètes (ex: "2026-01-15" → "2026-01")
+  const start = new Date(dateDebut.slice(0, 7) + '-01')
+  const end   = new Date(dateFin.slice(0, 7)   + '-01')
   if (isNaN(start) || isNaN(end) || start > end) return []
   const mois = []
   const cur = new Date(start)
