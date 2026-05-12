@@ -50,8 +50,8 @@ function NetworkKeyScreen({ onEnter, error }) {
 
 // ── Page principale Gestion ───────────────────────────────────────────────────
 export default function GestionPage() {
-  const { personnel } = useApp()
-  const { session }   = useAuth()
+  const { personnel, affaires, addAffaire, updateAffaire: updatePlanningAffaire } = useApp()
+  const { session } = useAuth()
   const { data, importData, updateAffaire, getMoisCA, moisDisponibles } = useGestion()
   const { isGranted, loading, enterKey, clearKey, localKey, networkKey } = useNetworkKey()
 
@@ -68,9 +68,42 @@ export default function GestionPage() {
     setKeyError(k.trim() !== networkKey && networkKey !== null)
   }
 
-  function handleImport(mois, caInitiales, caId, affaires) {
+  function handleImport(mois, caInitiales, caId, importedAffaires) {
     const by = session ? `${session.prenom} ${session.nom}` : 'Inconnu'
-    importData(mois, caInitiales, affaires, by)
+
+    // 1. Sauvegarder dans le module gestion
+    importData(mois, caInitiales, importedAffaires, by)
+
+    // 2. Synchroniser avec le planning : créer les nouvelles affaires, mettre à jour les existantes
+    let colorIdx = affaires.length % 10
+    for (const [numero, a] of Object.entries(importedAffaires)) {
+      const existing = affaires.find(x => x.numero === numero)
+      if (existing) {
+        // Mettre à jour les champs financiers sur l'affaire existante
+        updatePlanningAffaire(existing.id, {
+          montantHT:    a.montantCommande || existing.montantHT,
+          heuresPrevues: a.heuresPrevues  || existing.heuresPrevues,
+          client:        a.client         || existing.client,
+          intitule:      a.intitule       || existing.intitule,
+        })
+      } else {
+        // Créer l'affaire dans le planning
+        const id = 'a_' + numero.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        addAffaire({
+          id,
+          numero,
+          client:        a.client || '',
+          intitule:      a.intitule || '',
+          caId:          caId || '',
+          montantHT:     a.montantCommande || null,
+          heuresPrevues: a.heuresPrevues   || '',
+          statut:        'active',
+          colorIndex:    colorIdx++ % 10,
+          adresse:       '',
+        })
+      }
+    }
+
     setActiveTab('point')
   }
 
