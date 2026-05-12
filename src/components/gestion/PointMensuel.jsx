@@ -33,6 +33,52 @@ function ProgressBar({ value, max, color, label }) {
   )
 }
 
+function FacturationEnvisagee({ value, aFacturerSM, resteAFacturer, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState(value != null ? String(value) : '')
+  const suggestion = aFacturerSM || resteAFacturer || 0
+
+  function handleSave() {
+    const v = parseFloat(draft.replace(',', '.'))
+    onSave(isNaN(v) ? null : Math.round(v * 100) / 100)
+    setEditing(false)
+  }
+
+  if (editing) return (
+    <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+      <span className="text-xs font-semibold text-blue-700 shrink-0">Fact. envisagée :</span>
+      <input type="text" value={draft} onChange={e => setDraft(e.target.value)}
+        autoFocus onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
+        className="flex-1 bg-white border border-blue-200 rounded-lg px-2 py-1 text-xs font-mono focus:outline-none focus:border-blue-400 w-28"
+        placeholder="0" />
+      <span className="text-xs text-blue-400">€</span>
+      {suggestion > 0 && (
+        <button onClick={() => setDraft(String(suggestion))}
+          className="text-xs text-blue-500 hover:text-blue-700 border border-blue-200 hover:border-blue-400 px-2 py-1 rounded-lg whitespace-nowrap">
+          = {suggestion.toLocaleString('fr-FR')} €
+        </button>
+      )}
+      <button onClick={handleSave}
+        className="px-2 py-1 text-xs font-bold text-white rounded-lg" style={{ background: '#E31E24' }}>✓</button>
+      <button onClick={() => setEditing(false)} className="text-xs text-slate-400 hover:text-slate-600 px-1">✕</button>
+    </div>
+  )
+
+  return (
+    <button onClick={() => { setDraft(value != null ? String(value) : ''); setEditing(true) }}
+      className={`w-full text-left px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
+        value != null
+          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+          : 'border-dashed border-blue-200 text-blue-400 hover:border-blue-400 hover:bg-blue-50'
+      }`}>
+      {value != null
+        ? `💳 Facturation envisagée : ${Number(value).toLocaleString('fr-FR')} €`
+        : `+ Saisir la facturation envisagée ce mois${suggestion > 0 ? ` (suggéré : ${suggestion.toLocaleString('fr-FR')} €)` : ''}`
+      }
+    </button>
+  )
+}
+
 function AffaireCard({ numero, affaire, onUpdate }) {
   const [editing, setEditing]   = useState(false)
   const [comment, setComment]   = useState(affaire.commentaireGestion || '')
@@ -98,6 +144,16 @@ function AffaireCard({ numero, affaire, onUpdate }) {
           <div className="text-slate-400 font-medium mb-0.5">Reste à fact.</div>
           <div className="font-bold text-blue-700">{fmt(affaire.resteAFacturer)} €</div>
         </div>
+      </div>
+
+      {/* Facturation envisagée ce mois */}
+      <div className="px-4 pb-3">
+        <FacturationEnvisagee
+          value={affaire.facturationEnvisagee}
+          aFacturerSM={affaire.aFacturerSM}
+          resteAFacturer={affaire.resteAFacturer}
+          onSave={v => onUpdate(numero, { facturationEnvisagee: v })}
+        />
       </div>
 
       {/* Barres heures / matériel */}
@@ -193,10 +249,12 @@ export default function PointMensuel({ getMoisCA, moisDisponibles, updateAffaire
   const stats = useMemo(() => {
     const all = Object.values(affaires)
     return {
-      total:       all.length,
-      vues:        all.filter(a => a.pointFait).length,
-      enAlerte:    all.filter(a => a.marge < -1000 || a.heuresRealisees > a.heuresPrevues * 1.1).length,
-      aFacturer:   all.reduce((s, a) => s + (a.resteAFacturer || 0), 0),
+      total:                all.length,
+      vues:                 all.filter(a => a.pointFait).length,
+      enAlerte:             all.filter(a => a.marge < -1000 || a.heuresRealisees > a.heuresPrevues * 1.1).length,
+      aFacturer:            all.reduce((s, a) => s + (a.resteAFacturer || 0), 0),
+      facturationEnvisagee: all.reduce((s, a) => s + (a.facturationEnvisagee || 0), 0),
+      nbSaisies:            all.filter(a => a.facturationEnvisagee != null).length,
     }
   }, [affaires])
 
@@ -241,14 +299,16 @@ export default function PointMensuel({ getMoisCA, moisDisponibles, updateAffaire
       {Object.keys(affaires).length > 0 && (
         <div className="grid grid-cols-4 gap-3">
           {[
-            { label: 'Affaires', value: stats.total, color: '#1C1C2E' },
-            { label: 'Vues',     value: `${stats.vues} / ${stats.total}`, color: '#22c55e' },
-            { label: 'Alertes',  value: stats.enAlerte, color: stats.enAlerte > 0 ? '#ef4444' : '#9ca3af' },
-            { label: 'À facturer', value: stats.aFacturer.toLocaleString('fr-FR') + ' €', color: '#3b82f6' },
+            { label: 'Affaires',              value: stats.total, color: '#1C1C2E' },
+            { label: 'Vues',                  value: `${stats.vues} / ${stats.total}`, color: '#22c55e' },
+            { label: 'Alertes',               value: stats.enAlerte, color: stats.enAlerte > 0 ? '#ef4444' : '#9ca3af' },
+            { label: 'Fact. envisagée',       value: stats.facturationEnvisagee.toLocaleString('fr-FR') + ' €', color: '#E31E24',
+              sub: `${stats.nbSaisies}/${stats.total} affaires saisies` },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3">
               <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{s.label}</div>
               <div className="text-xl font-bold mt-1" style={{ color: s.color }}>{s.value}</div>
+              {s.sub && <div className="text-xs text-slate-400 mt-0.5">{s.sub}</div>}
             </div>
           ))}
         </div>

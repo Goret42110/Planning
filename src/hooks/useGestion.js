@@ -59,8 +59,22 @@ export function useGestion() {
     setItem(STORAGE_KEY, next)
   }
 
-  // Importer un fichier Excel pour un mois/CA
+  // Importer un fichier Excel — FUSIONNE avec les données existantes du même mois/CA
   const importData = useCallback((mois, caInitiales, affaires, importedBy) => {
+    const existing = data[mois]?.[caInitiales]?.affaires || {}
+    // Fusionner : nouvelles affaires s'ajoutent, existantes sont mises à jour
+    // On préserve les champs saisis manuellement (commentaireGestion, pointFait, facturationEnvisagee)
+    const merged = { ...existing }
+    for (const [num, aff] of Object.entries(affaires)) {
+      merged[num] = {
+        // Données Excel (écrasées à chaque import)
+        ...aff,
+        // Données manuelles préservées si déjà saisies
+        commentaireGestion:   existing[num]?.commentaireGestion   || '',
+        facturationEnvisagee: existing[num]?.facturationEnvisagee ?? null,
+        pointFait:            existing[num]?.pointFait            ?? false,
+      }
+    }
     const next = {
       ...data,
       [mois]: {
@@ -68,7 +82,7 @@ export function useGestion() {
         [caInitiales]: {
           importedAt: new Date().toISOString(),
           importedBy,
-          affaires,
+          affaires: merged,
         },
       },
     }
