@@ -9,6 +9,7 @@ const TABS = [
   { id: 'recap',       label: 'Récap',          icon: '📋', roles: null },
   { id: 'recapheures', label: 'Heures',         icon: '⏱', roles: null },
   { id: 'budget',      label: 'Budget',         icon: '💰', roles: ['responsable', 'ca'] },
+  { id: 'gestion',     label: 'Gestion',        icon: '📊', roles: ['responsable', 'ca'] },
 ]
 
 export default function TabNav({ activeTab, setActiveTab }) {

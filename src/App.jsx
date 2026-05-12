@@ -11,6 +11,7 @@ import RecapDashboard from './components/recap/RecapDashboard'
 import RecapHeures from './components/recap/RecapHeures'
 import BudgetPrevisionnelPage from './pages/BudgetPrevisionnelPage'
 import GanttPage from './pages/GanttPage'
+import GestionTab from './components/gestion/GestionTab'
 
 export const AppContext = createContext(null)
 export const useApp = () => useContext(AppContext)
@@ -67,6 +68,7 @@ export default function App() {
         {activeTab === 'recap'       && <RecapDashboard />}
         {activeTab === 'recapheures' && <RecapHeures />}
         {activeTab === 'budget'      && <BudgetPrevisionnelPage />}
+        {activeTab === 'gestion'     && <GestionTab />}
       </div>
     </div>
   )

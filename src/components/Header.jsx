@@ -106,16 +106,6 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 ml-1">
-          {(session?.role === 'responsable' || session?.role === 'ca') && (
-            <Link to="/gestion"
-              className={`text-xs border px-3 py-1.5 rounded-lg transition-all font-medium ${
-                networkGranted
-                  ? 'text-green-400 bg-green-400/10 border-green-400/20 hover:bg-green-400/20'
-                  : 'text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10'
-              }`}>
-              📊 Gestion
-            </Link>
-          )}
           {session?.role === 'responsable' && (
             <Link to="/admin"
               className="text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/25 px-3 py-1.5 rounded-lg transition-all font-medium">
