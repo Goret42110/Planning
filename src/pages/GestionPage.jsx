@@ -55,10 +55,12 @@ export default function GestionPage() {
   const { data, importData, updateAffaire, getMoisCA, moisDisponibles } = useGestion()
   const { isGranted, loading, enterKey, clearKey, localKey, networkKey } = useNetworkKey()
 
+  const isResponsable = session?.role === 'responsable'
+  const isCA          = session?.role === 'ca'
+
   const [activeTab, setActiveTab] = useState('point')
   const [keyError,  setKeyError]  = useState(false)
 
-  // Inclure les anciens CA (actif: false) pour les imports historiques
   const caList = useMemo(() => personnel.filter(p => p.role === 'CA' || p.role === 'RS'), [personnel])
 
   function handleEnterKey(k) {
