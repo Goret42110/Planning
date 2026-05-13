@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { useApp } from '../../App'
 import { useAuth } from '../../context/AuthContext'
@@ -111,10 +111,9 @@ export default function GestionTab() {
 
   const caList = useMemo(() => personnel.filter(p => p.role === 'CA' || p.role === 'RS'), [personnel])
 
-  const [moisActif,   setMoisActif]   = useState(() => {
-    // Défaut : mois précédent (les imports sont généralement du mois passé)
-    const d = new Date()
-    d.setMonth(d.getMonth() - 1)
+  const [moisActif, setMoisActif] = useState(() => {
+    // Défaut : mois précédent (sera remplacé dès que les données chargent)
+    const d = new Date(); d.setMonth(d.getMonth() - 1)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
   const [filtreCA,    setFiltreCA]    = useState(caIdEffectif || '')
@@ -200,21 +199,22 @@ export default function GestionTab() {
     })
   }, [affaires, caIdEffectif, filtreCA, search])
 
-  // ── Collecte des mois disponibles ──────────────────────────────────────────
+  // ── Collecte des mois disponibles (uniquement les mois avec données réelles) ──
   const moisDisponibles = useMemo(() => {
     const s = new Set()
-    // Ajouter les mois depuis les données importées
     for (const a of affaires) {
       if (a._finance?.importedMois) s.add(a._finance.importedMois)
       if (a._gestion) Object.keys(a._gestion).forEach(m => s.add(m))
     }
-    // Toujours inclure le mois précédent et le mois courant
-    const now  = new Date()
-    const prev = new Date(now); prev.setMonth(prev.getMonth() - 1)
-    s.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
-    s.add(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`)
     return [...s].sort((a, b) => b.localeCompare(a))
   }, [affaires])
+
+  // ── Caler le mois actif sur le dernier import réel dès que dispo ────────────
+  useEffect(() => {
+    if (moisDisponibles.length > 0 && !moisDisponibles.includes(moisActif)) {
+      setMoisActif(moisDisponibles[0]) // le plus récent
+    }
+  }, [moisDisponibles])
 
   // ── Stats du mois ───────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -283,7 +283,7 @@ export default function GestionTab() {
     <div className="h-full flex overflow-hidden">
 
       {/* ── Colonne gauche ──────────────────────────────────────────────────── */}
-      <div className="w-80 shrink-0 border-r border-slate-200 bg-white flex flex-col">
+      <div className="w-[420px] shrink-0 border-r border-slate-200 bg-white flex flex-col">
 
         {/* Contrôles */}
         <div className="p-3 border-b border-slate-100 space-y-2">
@@ -383,28 +383,72 @@ export default function GestionTab() {
 function AffaireLigne({ a, moisActif, selectedId, setSelectedId }) {
   const fin  = a._finance || {}
   const gest = a._gestion?.[moisActif] || {}
-  const alerte = fin.marge < -1000 || (fin.heuresRealisees > 0 && fin.heuresPrevues > 0 && fin.heuresRealisees > fin.heuresPrevues * 1.1)
+  const alerteMarge  = fin.marge != null && fin.marge < -1000
+  const alerteHeures = fin.heuresRealisees > 0 && fin.heuresPrevues > 0 && fin.heuresRealisees > fin.heuresPrevues * 1.1
+  const alerte = alerteMarge || alerteHeures
+  const isSelected = selectedId === a.id
+
+  const hPct = fin.heuresPrevues > 0 ? Math.min((fin.heuresRealisees / fin.heuresPrevues) * 100, 120) : null
+
+  function fmtK(v) {
+    if (!v && v !== 0) return null
+    const n = parseFloat(v); if (isNaN(n)) return null
+    return Math.abs(n) >= 1000 ? `${(n/1000).toFixed(0)}k€` : `${Math.round(n)}€`
+  }
+
   return (
-    <button key={a.id} onClick={() => setSelectedId(a.id)}
-      className={`w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors ${selectedId === a.id ? 'bg-red-50 border-l-2 border-[#E31E24]' : ''}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className={`text-xs font-bold ${selectedId === a.id ? 'text-[#E31E24]' : 'text-slate-600'}`}>{a.numero}</span>
-            {alerte && <span className="text-red-500 text-xs">⚠️</span>}
-            {gest.pointFait && <span className="text-green-500 text-xs">✓</span>}
-          </div>
-          <div className="text-xs text-slate-600 truncate">{a.intitule}</div>
-          {a.client && <div className="text-xs text-slate-400 truncate">{a.client}</div>}
+    <button onClick={() => setSelectedId(a.id)}
+      className={`w-full text-left px-3 py-3 transition-colors border-l-2 ${
+        isSelected
+          ? 'bg-red-50 border-[#E31E24]'
+          : alerte
+          ? 'hover:bg-red-50/40 border-transparent hover:border-red-200'
+          : 'hover:bg-slate-50 border-transparent'
+      }`}>
+
+      {/* Ligne 1 : N° + badges + marge */}
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`font-mono font-bold text-xs shrink-0 ${isSelected ? 'text-[#E31E24]' : 'text-slate-700'}`}>
+            {a.numero}
+          </span>
+          {alerte && <span className="text-xs leading-none" title="Alerte">⚠️</span>}
+          {gest.pointFait && <span className="text-green-500 text-xs font-bold leading-none">✓</span>}
         </div>
-        {fin.marge !== undefined && fin.marge !== 0 && (
-          <div className={`text-xs font-bold shrink-0 ${fin.marge < 0 ? 'text-red-500' : 'text-green-600'}`}>
-            {(fin.marge/1000).toFixed(0)}k€
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {gest.facturationEnvisagee != null && (
+            <span className="text-xs text-blue-600 font-semibold">💳 {fmtK(gest.facturationEnvisagee)}</span>
+          )}
+          {fin.marge != null && fin.marge !== 0 && (
+            <span className={`text-xs font-bold ${fin.marge < 0 ? 'text-red-500' : 'text-green-600'}`}>
+              {fmtK(fin.marge)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Ligne 2 : Intitulé */}
+      <div className="text-xs font-medium text-slate-800 truncate leading-snug mb-0.5">{a.intitule || '—'}</div>
+
+      {/* Ligne 3 : Client + montant */}
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="text-xs text-slate-400 truncate">{a.client || '—'}</span>
+        {fin.montantCommande > 0 && (
+          <span className="text-xs text-slate-500 shrink-0">{fmtK(fin.montantCommande)}</span>
         )}
       </div>
-      {gest.facturationEnvisagee != null && (
-        <div className="mt-1 text-xs text-blue-600">💳 {(gest.facturationEnvisagee/1000).toFixed(1)}k€</div>
+
+      {/* Barre heures */}
+      {hPct !== null && (
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all"
+              style={{ width: `${Math.min(hPct, 100)}%`, background: alerteHeures ? '#ef4444' : '#3b82f6' }} />
+          </div>
+          <span className={`text-xs shrink-0 ${alerteHeures ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+            {fin.heuresRealisees}h/{fin.heuresPrevues}h
+          </span>
+        </div>
       )}
     </button>
   )
@@ -454,11 +498,16 @@ function AffaireListeGroupee({ affaires, caList, moisActif, selectedId, setSelec
         return (
           <div key={key}>
             {/* En-tête groupe CA */}
-            <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-1.5 bg-slate-100 border-y border-slate-200">
-              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider truncate">{label}</span>
+            <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-2 bg-slate-100 border-y border-slate-200">
+              <div className="min-w-0">
+                <span className="text-xs font-bold text-slate-700 truncate">{label}</span>
+                <span className="ml-2 text-xs text-slate-400">{list.length} affaire{list.length > 1 ? 's' : ''}</span>
+              </div>
               <div className="flex items-center gap-2 shrink-0">
-                {nbAlerte > 0 && <span className="text-xs text-red-500">⚠️ {nbAlerte}</span>}
-                <span className="text-xs text-slate-400">{nbVus}/{list.length}</span>
+                {nbAlerte > 0 && <span className="text-xs text-red-500 font-semibold">⚠️ {nbAlerte}</span>}
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                  nbVus === list.length ? 'bg-green-100 text-green-700' : 'bg-amber-50 text-amber-600'
+                }`}>{nbVus}/{list.length}</span>
               </div>
             </div>
             <div className="divide-y divide-slate-50">
