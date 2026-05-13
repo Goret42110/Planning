@@ -441,11 +441,12 @@ function Delta({ label, curr, prev, inverse = false }) {
 
 // ── Ligne d'une affaire dans la liste ────────────────────────────────────────
 function AffaireLigne({ a, moisActif, moisPrecedent, selectedId, setSelectedId }) {
-  const fin   = a._finance || {}
   const gest  = a._gestion?.[moisActif]    || {}
   const gestP = a._gestion?.[moisPrecedent] || {}
+  // Données financières : snapshot du mois sélectionné, sinon _finance (dernier import)
   const snapC = gest._snap  || null
   const snapP = gestP._snap || null
+  const fin   = snapC || a._finance || {}
 
   const alerteMarge  = fin.marge != null && fin.marge < -1000
   const alerteHeures = fin.heuresRealisees > 0 && fin.heuresPrevues > 0
@@ -581,7 +582,7 @@ function AffaireListeGroupee({ affaires, caList, moisActif, moisPrecedent, selec
         const list  = groups[key]
         const nbVus = list.filter(a => a._gestion?.[moisActif]?.pointFait).length
         const nbAlerte = list.filter(a => {
-          const fin = a._finance || {}
+          const fin = a._gestion?.[moisActif]?._snap || a._finance || {}
           return fin.marge < -1000 || (fin.heuresRealisees > 0 && fin.heuresPrevues > 0 && fin.heuresRealisees > fin.heuresPrevues * 1.1)
         }).length
         return (
@@ -613,8 +614,12 @@ function AffaireListeGroupee({ affaires, caList, moisActif, moisPrecedent, selec
 
 // ── Détail d'une affaire ──────────────────────────────────────────────────────
 function AffaireDetail({ affaire, mois, onUpdate, caList }) {
-  const fin  = affaire._finance || {}
-  const gest = affaire._gestion?.[mois] || {}
+  const gest    = affaire._gestion?.[mois] || {}
+  // Données financières : snapshot du mois sélectionné > dernier import
+  const snap    = gest._snap || null
+  const finBase = affaire._finance || {}         // toujours là (aFacturerSM, achats, commentaire…)
+  const fin     = snap ? { ...finBase, ...snap } : finBase
+  const dataSource = snap ? `données ${fmtMois(mois)}` : `dernier import (${fmtMois(finBase.importedMois) || '?'})`
   const ca   = caList.find(c => c.id === affaire.caId)
 
   const [editComment, setEditComment] = useState(false)
@@ -643,7 +648,9 @@ function AffaireDetail({ affaire, mois, onUpdate, caList }) {
               {affaire.probabilite && affaire.probabilite < 100 && (
                 <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">{affaire.probabilite}%</span>
               )}
-              {fin.importedMois && <span className="text-xs text-slate-400">Import : {fin.importedMois}</span>}
+              <span className={`text-xs px-2 py-0.5 rounded-lg border ${snap ? 'text-blue-600 bg-blue-50 border-blue-100' : 'text-amber-600 bg-amber-50 border-amber-100'}`}>
+                📅 {dataSource}
+              </span>
             </div>
             <div className="font-semibold text-slate-900">{affaire.intitule}</div>
             <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-400">
