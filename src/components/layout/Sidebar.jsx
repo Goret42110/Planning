@@ -46,7 +46,7 @@ export const NAV = [
 
 export default function Sidebar({ activeTab, setActiveTab }) {
   const { session, logout } = useAuth()
-  const { personnel, selectedCA, setSelectedCA } = useApp()
+  const { personnel, selectedCA, setSelectedCA, caViewAll, setCaViewAll } = useApp()
   const navigate = useNavigate()
   const [collapsed,    setCollapsed]    = useState(false)
   const [openSections, setOpenSections] = useState(() => {
@@ -184,6 +184,27 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                 <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom}</option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* Toggle vue — CA uniquement */}
+        {!collapsed && role === 'ca' && (
+          <div className="px-1 pb-1">
+            <div className="text-white/25 text-xs mb-1 px-1">Vue planning</div>
+            <div className="flex rounded-lg overflow-hidden border border-white/10">
+              <button
+                onClick={() => setCaViewAll(false)}
+                className={`flex-1 py-1.5 text-xs font-medium transition-colors ${!caViewAll ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                style={!caViewAll ? { background: '#E31E24' } : { background: '#2A2A3E' }}>
+                Mes affaires
+              </button>
+              <button
+                onClick={() => setCaViewAll(true)}
+                className={`flex-1 py-1.5 text-xs font-medium transition-colors ${caViewAll ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                style={caViewAll ? { background: '#3b4a6b' } : { background: '#2A2A3E' }}>
+                Tout
+              </button>
+            </div>
           </div>
         )}
 

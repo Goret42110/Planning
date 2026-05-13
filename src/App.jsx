@@ -20,13 +20,15 @@ export function AppProvider({ children }) {
   const { session } = useAuth()
   const [selectedCA, setSelectedCA] = useState(null)
   const [personTypeFilter, setPersonTypeFilter] = useState('all')
+  const [caViewAll, setCaViewAll] = useState(false)   // CA peut basculer "tout voir"
 
   // caIdEffectif : id du CA connecté (ou CA rattaché pour ACA), null sinon
+  // Pour un CA avec caViewAll=true → null (tout afficher)
   const caIdEffectif = useMemo(() => {
-    if (session?.role === 'ca')  return session.id
+    if (session?.role === 'ca')  return caViewAll ? null : session.id
     if (session?.role === 'aca') return session.caId || null
     return null
-  }, [session])
+  }, [session, caViewAll])
 
   if (appData.syncing) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -45,6 +47,8 @@ export function AppProvider({ children }) {
       setSelectedCA,
       personTypeFilter,
       setPersonTypeFilter,
+      caViewAll,
+      setCaViewAll,
     }}>
       {children}
     </AppContext.Provider>
