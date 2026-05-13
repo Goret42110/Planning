@@ -1,6 +1,13 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useApp } from '../../App'
+import { utilisateurs as BASE_USERS } from '../../data/utilisateurs'
+
+function getAuthUsers() {
+  try { const s = localStorage.getItem('els_utilisateurs'); if (s) return JSON.parse(s) } catch {}
+  return BASE_USERS
+}
 
 export const NAV = [
   {
@@ -39,6 +46,8 @@ export const NAV = [
 
 export default function Sidebar({ activeTab, setActiveTab }) {
   const { session, logout } = useAuth()
+  const { personnel, selectedCA, setSelectedCA } = useApp()
+  const navigate = useNavigate()
   const [collapsed,    setCollapsed]    = useState(false)
   const [openSections, setOpenSections] = useState(() => {
     // Ouvre la section contenant le tab actif
@@ -51,6 +60,18 @@ export default function Sidebar({ activeTab, setActiveTab }) {
   })
 
   const role = session?.role
+
+  // Liste des CA pour le filtre (responsable uniquement)
+  const planningCAs = personnel?.filter(p => (p.role === 'CA' || p.role === 'RS') && p.actif) || []
+  const authResp    = getAuthUsers()
+    .filter(u => u.role === 'responsable' && !personnel?.find(p => p.id === u.id))
+    .map(u => ({ id: u.id, prenom: u.prenom, nom: u.nom }))
+  const caFilterList = [...planningCAs, ...authResp]
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   function toggleSection(id) {
     setOpenSections(prev => {
@@ -148,6 +169,24 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
       {/* Footer */}
       <div className={`border-t border-white/10 p-2 space-y-1 shrink-0`}>
+
+        {/* Filtre CA — responsable uniquement */}
+        {!collapsed && role === 'responsable' && caFilterList.length > 0 && (
+          <div className="px-1 pb-1">
+            <div className="text-white/25 text-xs mb-1 px-1">Vue CA</div>
+            <select
+              value={selectedCA || ''}
+              onChange={e => setSelectedCA(e.target.value || null)}
+              className="w-full rounded-lg px-2 py-1.5 text-xs focus:outline-none border border-white/10 focus:border-[#E31E24]"
+              style={{ background: '#2A2A3E', color: 'rgba(255,255,255,0.7)', colorScheme: 'dark' }}>
+              <option value="">Tous les CA</option>
+              {caFilterList.map(ca => (
+                <option key={ca.id} value={ca.id}>{ca.prenom} {ca.nom}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Admin */}
         {role === 'responsable' && (
           <Link to="/admin"
@@ -171,12 +210,19 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           )}
         </div>
 
-        {/* Collapse toggle */}
-        <button onClick={() => setCollapsed(v => !v)}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-white/30 hover:text-white/60 hover:bg-white/5 transition-all ${collapsed ? 'justify-center' : ''}`}>
-          <span>{collapsed ? '→' : '←'}</span>
-          {!collapsed && <span>Réduire</span>}
-        </button>
+        {/* Déconnexion + Réduire */}
+        <div className={`flex gap-1 ${collapsed ? 'flex-col items-center' : ''}`}>
+          <button onClick={handleLogout}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs text-white/30 hover:text-red-400 hover:bg-white/5 transition-all ${collapsed ? 'justify-center w-full' : 'flex-1'}`}>
+            <span>⏻</span>
+            {!collapsed && <span>Déconnexion</span>}
+          </button>
+          <button onClick={() => setCollapsed(v => !v)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs text-white/30 hover:text-white/60 hover:bg-white/5 transition-all ${collapsed ? 'justify-center w-full' : ''}`}>
+            <span>{collapsed ? '→' : '←'}</span>
+            {!collapsed && <span>Réduire</span>}
+          </button>
+        </div>
       </div>
     </aside>
   )
