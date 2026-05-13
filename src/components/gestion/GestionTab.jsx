@@ -63,7 +63,7 @@ function parseFile(file) {
             commentaireExcel:String(row[COL.commentaireExcel] || '').trim(),
           }
         }
-        const mois = moisImportOverride || detectMoisFichier(file.name)
+        const mois = detectMoisFichier(file.name)
         res({ affaires, caInit, mois, count: Object.keys(affaires).length })
       } catch(err) { rej(err) }
     }
@@ -178,7 +178,8 @@ export default function GestionTab() {
     let total = 0, created = 0, updated = 0
     try {
       for (const file of Array.from(fileList)) {
-        const { affaires: parsed, caInit, mois } = await parseFile(file)
+        const { affaires: parsed, caInit, mois: moisDetecte } = await parseFile(file)
+        const mois = moisImportOverride || moisDetecte
         const ca = matchCA(caInit, caList)
         for (const [numero, fin] of Object.entries(parsed)) {
           total++
