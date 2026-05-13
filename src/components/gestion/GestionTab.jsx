@@ -366,11 +366,20 @@ export default function GestionTab() {
                 className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#E31E24]"
                 style={moisImportOverride ? {} : { color: '#94a3b8' }}>
                 <option value="">— Auto-détecté —</option>
-                {Array.from({ length: 17 }, (_, i) => {
-                  const d = new Date(2024, 0 + i, 1)
-                  const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-                  return <option key={k} value={k}>{fmtMois(k)}</option>
-                })}
+                {(() => {
+                  const opts = []
+                  const now = new Date()
+                  // De jan 2024 jusqu'au mois courant
+                  const start = new Date(2024, 0, 1)
+                  const end   = new Date(now.getFullYear(), now.getMonth(), 1)
+                  const cur   = new Date(start)
+                  while (cur <= end) {
+                    const k = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`
+                    opts.push(<option key={k} value={k}>{fmtMois(k)}</option>)
+                    cur.setMonth(cur.getMonth() + 1)
+                  }
+                  return opts.reverse() // plus récent en premier
+                })()}
               </select>
             </div>
             <button onClick={() => inputRef.current?.click()}
