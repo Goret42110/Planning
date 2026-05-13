@@ -114,10 +114,12 @@ function AffaireFilter({ affaires, selected, onChange }) {
 }
 
 export default function PlanningGrid() {
-  const { personnel, affaires, planning, comments, setComment, selectedCA, caIdEffectif, personTypeFilter, setPersonTypeFilter, setPlanningCell } = useApp()
+  const { personnel, affaires, planning, comments, setComment, selectedCA, caIdEffectif, caPersonnelViewAll, personTypeFilter, setPersonTypeFilter, setPlanningCell } = useApp()
 
-  // CA effectif : caIdEffectif (auto pour CA/ACA) ou selectedCA (manuel pour responsable)
+  // effectiveCA : filtre sur les AFFAIRES (toujours actif pour CA/ACA)
   const effectiveCA = caIdEffectif || selectedCA
+  // effectiveCAPersonnel : filtre sur les TECHNICIENS (désactivé si CA a choisi "Tout")
+  const effectiveCAPersonnel = caPersonnelViewAll ? null : effectiveCA
 
   const cur = getCurrentWeekInfo()
   const [nav, setNav]               = useState({ week: cur.week, year: cur.year })
@@ -145,8 +147,9 @@ export default function PlanningGrid() {
     if (!p.actif) return false
     if (!isPlannable(p)) return false
     if (personTypeFilter !== 'all' && p.type !== personTypeFilter) return false
-    if (effectiveCA && p.role !== 'RS') {
-      const caAffaireIds = new Set(affaires.filter(a => a.caId === effectiveCA).map(a => a.id))
+    // Filtre personnel par CA — ignoré si caPersonnelViewAll (CA a choisi "Tout")
+    if (effectiveCAPersonnel && p.role !== 'RS') {
+      const caAffaireIds = new Set(affaires.filter(a => a.caId === effectiveCAPersonnel).map(a => a.id))
       const hasAny = Object.entries(planning).some(([k, v]) => {
         if (!k.startsWith(`${p.id}_`)) return false
         return getCellSlots(v).some(s => caAffaireIds.has(s.id))

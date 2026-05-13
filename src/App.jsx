@@ -20,15 +20,16 @@ export function AppProvider({ children }) {
   const { session } = useAuth()
   const [selectedCA, setSelectedCA] = useState(null)
   const [personTypeFilter, setPersonTypeFilter] = useState('all')
-  const [caViewAll, setCaViewAll] = useState(false)   // CA peut basculer "tout voir"
+  // caPersonnelViewAll : CA peut voir TOUS les techniciens dans le planning
+  // mais caIdEffectif reste toujours son propre id → affaires jamais exposées
+  const [caPersonnelViewAll, setCaPersonnelViewAll] = useState(false)
 
-  // caIdEffectif : id du CA connecté (ou CA rattaché pour ACA), null sinon
-  // Pour un CA avec caViewAll=true → null (tout afficher)
+  // caIdEffectif : toujours = session.id pour CA (affaires strictement les siennes)
   const caIdEffectif = useMemo(() => {
-    if (session?.role === 'ca')  return caViewAll ? null : session.id
+    if (session?.role === 'ca')  return session.id
     if (session?.role === 'aca') return session.caId || null
     return null
-  }, [session, caViewAll])
+  }, [session])
 
   if (appData.syncing) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -47,8 +48,8 @@ export function AppProvider({ children }) {
       setSelectedCA,
       personTypeFilter,
       setPersonTypeFilter,
-      caViewAll,
-      setCaViewAll,
+      caPersonnelViewAll,
+      setCaPersonnelViewAll,
     }}>
       {children}
     </AppContext.Provider>
