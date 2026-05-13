@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { useApp } from '../../App'
 import { useAuth } from '../../context/AuthContext'
-import { useNetworkKey } from '../../hooks/useNetworkKey'
 
 // ── Parser Excel (identique ImportExcel.jsx) ──────────────────────────────────
 function detectFormat(rows) {
@@ -139,7 +138,6 @@ function fmt(v) {
 export default function GestionTab() {
   const { affaires, personnel, addAffaire, updateAffaire } = useApp()
   const { session } = useAuth()
-  const { isGranted, networkKey, enterKey, localKey } = useNetworkKey()
 
   const isResponsable = session?.role === 'responsable'
   const isCA          = session?.role === 'ca'
@@ -157,9 +155,7 @@ export default function GestionTab() {
   const [importing,          setImporting]          = useState(false)
   const [importMsg,          setImportMsg]          = useState('')
   const [moisImportOverride, setMoisImportOverride] = useState('')
-  const [netKeyInput,        setNetKeyInput]        = useState('')
-  const [netKeyErr,          setNetKeyErr]          = useState(false)
-  const [selectedId,         setSelectedId]         = useState(null)
+  const [selectedId, setSelectedId] = useState(null)
   const inputRef = useRef()
 
   // Pré-détecter le mois dès la sélection des fichiers
@@ -313,36 +309,6 @@ export default function GestionTab() {
       },
     })
   }
-
-  // ── Écran clé réseau ────────────────────────────────────────────────────────
-  if (!isGranted && !networkKey) return (
-    <div className="h-full flex items-center justify-center">
-      <div className="text-center text-slate-400">
-        <div className="text-4xl mb-3">⚙️</div>
-        <div className="font-semibold text-slate-600">Clé réseau non configurée</div>
-        <div className="text-sm mt-1">Allez dans Admin pour définir la clé d'accès</div>
-      </div>
-    </div>
-  )
-
-  if (!isGranted) return (
-    <div className="h-full flex items-center justify-center px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-sm text-center">
-        <div className="text-4xl mb-4">🔐</div>
-        <h2 className="text-lg font-bold text-slate-900 mb-1">Accès restreint</h2>
-        <p className="text-sm text-slate-400 mb-5">Saisissez la clé réseau interne ELS</p>
-        <form onSubmit={e => { e.preventDefault(); enterKey(netKeyInput); setNetKeyErr(netKeyInput.trim() !== networkKey) }} className="space-y-3">
-          <input type="password" value={netKeyInput} onChange={e => setNetKeyInput(e.target.value)}
-            autoFocus placeholder="Clé réseau…"
-            className="w-full border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm text-center font-mono focus:outline-none focus:border-[#E31E24]" />
-          {netKeyErr && <div className="text-xs text-red-600">Clé incorrecte</div>}
-          <button type="submit" disabled={!netKeyInput.trim()}
-            className="w-full py-2.5 text-sm font-bold text-white rounded-xl disabled:opacity-40"
-            style={{ background: '#E31E24' }}>Accéder</button>
-        </form>
-      </div>
-    </div>
-  )
 
   return (
     <div className="h-full flex overflow-hidden">

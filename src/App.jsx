@@ -2,6 +2,7 @@ import { useState, useMemo, createContext, useContext } from 'react'
 import { useAppData } from './hooks/useAppData'
 import { useAuth } from './context/AuthContext'
 import Sidebar from './components/layout/Sidebar'
+import NetworkGate from './components/layout/NetworkGate'
 import PlanningGrid from './components/planning/PlanningGrid'
 import PersonnelList from './components/personnel/PersonnelList'
 import AffaireList from './components/affaires/AffaireList'
@@ -67,11 +68,13 @@ export default function App() {
         {activeTab === 'planning'    && <PlanningGrid />}
         {activeTab === 'gantt'       && <GanttPage />}
         {activeTab === 'personnel'   && <PersonnelList />}
-        {activeTab === 'affaires'    && <AffaireList />}
         {activeTab === 'activite'    && <ActivitePage />}
-        {activeTab === 'recapheures' && <RecapHeures />}
-        {activeTab === 'budget'      && <BudgetPrevisionnelPage />}
-        {activeTab === 'gestion'     && <GestionTab />}
+
+        {/* Pages protégées — clé réseau requise */}
+        {activeTab === 'affaires'    && <NetworkGate><AffaireList /></NetworkGate>}
+        {activeTab === 'recapheures' && <NetworkGate><RecapHeures /></NetworkGate>}
+        {activeTab === 'budget'      && <NetworkGate><BudgetPrevisionnelPage /></NetworkGate>}
+        {activeTab === 'gestion'     && <NetworkGate><GestionTab /></NetworkGate>}
       </main>
     </div>
   )
