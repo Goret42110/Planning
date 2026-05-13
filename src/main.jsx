@@ -9,6 +9,8 @@ import GestionPage from './pages/GestionPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import TechnicienRoute from './components/TechnicienRoute.jsx'
 import CAMobileRoute from './components/ca/CAMobileRoute.jsx'
+import NetworkBlock from './components/layout/NetworkBlock.jsx'
+import { useNetworkAccess } from './hooks/useNetworkAccess.js'
 import './index.css'
 
 function RoleRedirect() {
@@ -18,9 +20,18 @@ function RoleRedirect() {
   return <Navigate to="/planning" replace />
 }
 
+function NetworkGuard({ children }) {
+  const status = useNetworkAccess()
+  if (status === 'checking')        return <NetworkBlock checking />
+  if (status === 'blocked')         return <NetworkBlock />
+  // 'allowed' ou 'not_configured' (env var pas encore définie) → on laisse passer
+  return children
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
+      <NetworkGuard>
       <AuthProvider>
         <AppProvider>
           <Routes>
@@ -51,6 +62,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           </Routes>
         </AppProvider>
       </AuthProvider>
+      </NetworkGuard>
     </BrowserRouter>
   </React.StrictMode>,
 )
