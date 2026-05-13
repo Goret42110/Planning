@@ -1,17 +1,16 @@
 import { useState, useMemo, createContext, useContext } from 'react'
 import { useAppData } from './hooks/useAppData'
 import { useAuth } from './context/AuthContext'
-import Header from './components/Header'
-import TabNav from './components/TabNav'
+import Sidebar from './components/layout/Sidebar'
 import PlanningGrid from './components/planning/PlanningGrid'
 import PersonnelList from './components/personnel/PersonnelList'
 import AffaireList from './components/affaires/AffaireList'
-import ChargeGlobale from './components/charge/ChargeGlobale'
-import RecapDashboard from './components/recap/RecapDashboard'
 import RecapHeures from './components/recap/RecapHeures'
 import BudgetPrevisionnelPage from './pages/BudgetPrevisionnelPage'
 import GanttPage from './pages/GanttPage'
 import GestionTab from './components/gestion/GestionTab'
+import DashboardPage from './pages/DashboardPage'
+import ActivitePage from './pages/ActivitePage'
 
 export const AppContext = createContext(null)
 export const useApp = () => useContext(AppContext)
@@ -53,23 +52,22 @@ export function AppProvider({ children }) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('planning')
+  const [activeTab, setActiveTab] = useState('accueil')
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
-      <Header />
-      <TabNav activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div className="flex-1 overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: '#F4F5F7' }}>
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <main className="flex-1 overflow-hidden">
+        {activeTab === 'accueil'     && <DashboardPage setActiveTab={setActiveTab} />}
         {activeTab === 'planning'    && <PlanningGrid />}
         {activeTab === 'gantt'       && <GanttPage />}
         {activeTab === 'personnel'   && <PersonnelList />}
         {activeTab === 'affaires'    && <AffaireList />}
-        {activeTab === 'charge'      && <ChargeGlobale />}
-        {activeTab === 'recap'       && <RecapDashboard />}
+        {activeTab === 'activite'    && <ActivitePage />}
         {activeTab === 'recapheures' && <RecapHeures />}
         {activeTab === 'budget'      && <BudgetPrevisionnelPage />}
         {activeTab === 'gestion'     && <GestionTab />}
-      </div>
+      </main>
     </div>
   )
 }
