@@ -63,17 +63,7 @@ function parseFile(file) {
             commentaireExcel:String(row[COL.commentaireExcel] || '').trim(),
           }
         }
-        // Détecter mois depuis nom de fichier
-        // Format attendu : Facturation{initiales}{MM}{AAAA ou AA}
-        // Ex: FacturationTN042025 → 2025-04 | FacturationTN0425 → 2025-04
-        const m6 = file.name.match(/[A-Za-z](\d{2})(20\d{2})(?!\d)/) // MMAAAA
-        const m4 = file.name.match(/[A-Za-z](\d{2})(\d{2})(?!\d)/)   // MMAA
-        const mc  = m6 || m4
-        const mois = mc
-          ? mc[2].length === 4
-            ? `${mc[2]}-${mc[1]}`        // MMAAAA → AAAA-MM
-            : `20${mc[2]}-${mc[1]}`      // MMAA   → 20AA-MM
-          : new Date().toISOString().slice(0, 7)
+        const mois = moisImportOverride || detectMoisFichier(file.name)
         res({ affaires, caInit, mois, count: Object.keys(affaires).length })
       } catch(err) { rej(err) }
     }
@@ -91,6 +81,44 @@ function matchCA(init, caList) {
     if (u.length === 3) return p[0] + nm.slice(0, 2) === u
     return false
   }) || null
+}
+
+// ── Détection mois depuis nom de fichier ──────────────────────────────────────
+// Extrait tous les groupes de chiffres et cherche une paire valide MM + AA(AA)
+function detectMoisFichier(filename) {
+  const name = filename.replace(/\.[^.]+$/, '') // sans extension
+  // Extraire tous les groupes de chiffres consécutifs
+  const groups = [...name.matchAll(/\d+/g)].map(m => m[0])
+
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i]
+    // Chercher MMAAAA sur 6 chiffres consécutifs
+    if (g.length >= 6) {
+      const mm = g.slice(0, 2), yy = g.slice(2, 6)
+      if (parseInt(mm) >= 1 && parseInt(mm) <= 12 && yy.startsWith('20')) {
+        return `${yy}-${mm}`
+      }
+    }
+    // Chercher MMAA sur 4 chiffres consécutifs
+    if (g.length === 4) {
+      const mm = g.slice(0, 2), yy = g.slice(2, 4)
+      if (parseInt(mm) >= 1 && parseInt(mm) <= 12) {
+        return `20${yy}-${mm}`
+      }
+    }
+    // Chercher MM (2 chiffres) suivi du prochain groupe AA ou AAAA
+    if (g.length === 2) {
+      const mm = parseInt(g)
+      if (mm >= 1 && mm <= 12 && groups[i + 1]) {
+        const next = groups[i + 1]
+        if (next.length === 4 && next.startsWith('20')) return `${next}-${g.padStart(2,'0')}`
+        if (next.length === 2) return `20${next}-${g.padStart(2,'0')}`
+      }
+    }
+  }
+  // Fallback : mois précédent
+  const d = new Date(); d.setMonth(d.getMonth() - 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc']
@@ -126,12 +154,22 @@ export default function GestionTab() {
   })
   const [filtreCA,    setFiltreCA]    = useState(caIdEffectif || '')
   const [search,      setSearch]      = useState('')
-  const [importing,   setImporting]   = useState(false)
-  const [importMsg,   setImportMsg]   = useState('')
-  const [netKeyInput, setNetKeyInput] = useState('')
-  const [netKeyErr,   setNetKeyErr]   = useState(false)
-  const [selectedId,  setSelectedId]  = useState(null)
+  const [importing,          setImporting]          = useState(false)
+  const [importMsg,          setImportMsg]          = useState('')
+  const [moisImportOverride, setMoisImportOverride] = useState('')
+  const [netKeyInput,        setNetKeyInput]        = useState('')
+  const [netKeyErr,          setNetKeyErr]          = useState(false)
+  const [selectedId,         setSelectedId]         = useState(null)
   const inputRef = useRef()
+
+  // Pré-détecter le mois dès la sélection des fichiers
+  function onFilesSelected(fileList) {
+    if (fileList.length > 0) {
+      const detected = detectMoisFichier(fileList[0].name)
+      setMoisImportOverride(detected)
+    }
+    handleFiles(fileList)
+  }
 
   // ── Import Excel ────────────────────────────────────────────────────────────
   async function handleFiles(fileList) {
@@ -192,15 +230,10 @@ export default function GestionTab() {
         }
         setMoisActif(mois)
       }
-      const moisImportes = [...new Set(Array.from(fileList).map(f => {
-        const m6 = f.name.match(/[A-Za-z](\d{2})(20\d{2})(?!\d)/)
-        const m4 = f.name.match(/[A-Za-z](\d{2})(\d{2})(?!\d)/)
-        const mc = m6 || m4
-        if (!mc) return null
-        const k = mc[2].length === 4 ? `${mc[2]}-${mc[1]}` : `20${mc[2]}-${mc[1]}`
-        return fmtMois(k)
-      }).filter(Boolean))].join(', ')
-      setImportMsg(`✅ ${total} affaires traitées — ${created} créées, ${updated} mises à jour${moisImportes ? ` · Mois : ${moisImportes}` : ''}`)
+      const moisImportes = [...new Set(Array.from(fileList).map(f =>
+        fmtMois(moisImportOverride || detectMoisFichier(f.name))
+      ))].join(', ')
+      setImportMsg(`✅ ${total} affaires traitées — ${created} créées, ${updated} mises à jour · Mois : ${moisImportes}`)
     } catch(e) {
       setImportMsg(`❌ Erreur : ${e.message}`)
     }
@@ -318,20 +351,35 @@ export default function GestionTab() {
 
         {/* Contrôles */}
         <div className="p-3 border-b border-slate-100 space-y-2">
-          {/* Import + mois */}
-          <div className="flex gap-2">
-            <select value={moisActif} onChange={e => setMoisActif(e.target.value)}
-              className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#E31E24]">
-              {moisDisponibles.length === 0 && <option value={moisActif}>{fmtMois(moisActif)}</option>}
-              {moisDisponibles.map(m => <option key={m} value={m}>{fmtMois(m)}</option>)}
-            </select>
+          {/* Sélecteur mois actif */}
+          <select value={moisActif} onChange={e => setMoisActif(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#E31E24]">
+            {moisDisponibles.length === 0 && <option value={moisActif}>{fmtMois(moisActif)}</option>}
+            {moisDisponibles.map(m => <option key={m} value={m}>{fmtMois(m)}</option>)}
+          </select>
+
+          {/* Import + mois override */}
+          <div className="flex gap-2 items-center">
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+              <div className="text-xs text-slate-400">Mois d'import</div>
+              <select value={moisImportOverride} onChange={e => setMoisImportOverride(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#E31E24]"
+                style={moisImportOverride ? {} : { color: '#94a3b8' }}>
+                <option value="">— Auto-détecté —</option>
+                {Array.from({ length: 17 }, (_, i) => {
+                  const d = new Date(2024, 0 + i, 1)
+                  const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+                  return <option key={k} value={k}>{fmtMois(k)}</option>
+                })}
+              </select>
+            </div>
             <button onClick={() => inputRef.current?.click()}
-              className="px-3 py-1.5 text-xs font-semibold text-white rounded-lg whitespace-nowrap"
+              className="px-3 py-2 text-xs font-semibold text-white rounded-lg whitespace-nowrap self-end"
               style={{ background: '#E31E24' }}>
               {importing ? '…' : '+ Import'}
             </button>
             <input ref={inputRef} type="file" multiple accept=".xlsx,.xlsm" className="hidden"
-              onChange={e => handleFiles(e.target.files)} />
+              onChange={e => onFilesSelected(e.target.files)} />
           </div>
 
           {importMsg && (
