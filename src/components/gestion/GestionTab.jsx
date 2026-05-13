@@ -64,8 +64,16 @@ function parseFile(file) {
           }
         }
         // Détecter mois depuis nom de fichier
-        const m = file.name.match(/(\d{2})(\d{2})/)
-        const mois = m ? `20${m[2]}-${m[1]}` : new Date().toISOString().slice(0, 7)
+        // Format attendu : Facturation{initiales}{MM}{AAAA ou AA}
+        // Ex: FacturationTN042025 → 2025-04 | FacturationTN0425 → 2025-04
+        const m6 = file.name.match(/[A-Za-z](\d{2})(20\d{2})(?!\d)/) // MMAAAA
+        const m4 = file.name.match(/[A-Za-z](\d{2})(\d{2})(?!\d)/)   // MMAA
+        const mc  = m6 || m4
+        const mois = mc
+          ? mc[2].length === 4
+            ? `${mc[2]}-${mc[1]}`        // MMAAAA → AAAA-MM
+            : `20${mc[2]}-${mc[1]}`      // MMAA   → 20AA-MM
+          : new Date().toISOString().slice(0, 7)
         res({ affaires, caInit, mois, count: Object.keys(affaires).length })
       } catch(err) { rej(err) }
     }
@@ -184,7 +192,15 @@ export default function GestionTab() {
         }
         setMoisActif(mois)
       }
-      setImportMsg(`✅ ${total} affaires traitées — ${created} créées, ${updated} mises à jour`)
+      const moisImportes = [...new Set(Array.from(fileList).map(f => {
+        const m6 = f.name.match(/[A-Za-z](\d{2})(20\d{2})(?!\d)/)
+        const m4 = f.name.match(/[A-Za-z](\d{2})(\d{2})(?!\d)/)
+        const mc = m6 || m4
+        if (!mc) return null
+        const k = mc[2].length === 4 ? `${mc[2]}-${mc[1]}` : `20${mc[2]}-${mc[1]}`
+        return fmtMois(k)
+      }).filter(Boolean))].join(', ')
+      setImportMsg(`✅ ${total} affaires traitées — ${created} créées, ${updated} mises à jour${moisImportes ? ` · Mois : ${moisImportes}` : ''}`)
     } catch(e) {
       setImportMsg(`❌ Erreur : ${e.message}`)
     }
