@@ -137,13 +137,21 @@ export default function GestionTab() {
         for (const [numero, fin] of Object.entries(parsed)) {
           total++
           const existing = affaires.find(a => a.numero === numero)
+          // Snapshot financier à conserver par mois pour les deltas
+          const snap = {
+            montantCommande:  fin.montantCommande,
+            montantFacture:   fin.montantFacture,
+            heuresRealisees:  fin.heuresRealisees,
+            heuresPrevues:    fin.heuresPrevues,
+            marge:            fin.marge,
+            resteAFacturer:   fin.resteAFacturer,
+          }
           if (existing) {
-            // Mettre à jour les données financières sur l'affaire existante
             const prevGestion = existing._gestion || {}
             updateAffaire(existing.id, {
-              client:   fin.client   || existing.client,
-              intitule: fin.intitule || existing.intitule,
-              montantHT: fin.montantCommande || existing.montantHT,
+              client:        fin.client        || existing.client,
+              intitule:      fin.intitule      || existing.intitule,
+              montantHT:     fin.montantCommande || existing.montantHT,
               heuresPrevues: fin.heuresPrevues || existing.heuresPrevues,
               _finance: { ...fin, importedMois: mois, importedAt: new Date().toISOString() },
               _gestion: {
@@ -152,12 +160,12 @@ export default function GestionTab() {
                   facturationEnvisagee: prevGestion[mois]?.facturationEnvisagee ?? null,
                   commentaire:          prevGestion[mois]?.commentaire          ?? '',
                   pointFait:            prevGestion[mois]?.pointFait            ?? false,
+                  _snap: snap,
                 },
               },
             })
             updated++
           } else {
-            // Créer la nouvelle affaire
             addAffaire({
               numero,
               client:        fin.client || '',
@@ -168,7 +176,7 @@ export default function GestionTab() {
               statut:        'active',
               _finance: { ...fin, importedMois: mois, importedAt: new Date().toISOString() },
               _gestion: {
-                [mois]: { facturationEnvisagee: null, commentaire: '', pointFait: false },
+                [mois]: { facturationEnvisagee: null, commentaire: '', pointFait: false, _snap: snap },
               },
             })
             created++
@@ -212,9 +220,16 @@ export default function GestionTab() {
   // ── Caler le mois actif sur le dernier import réel dès que dispo ────────────
   useEffect(() => {
     if (moisDisponibles.length > 0 && !moisDisponibles.includes(moisActif)) {
-      setMoisActif(moisDisponibles[0]) // le plus récent
+      setMoisActif(moisDisponibles[0])
     }
   }, [moisDisponibles])
+
+  // ── Mois précédent (pour les deltas) ─────────────────────────────────────────
+  const moisPrecedent = useMemo(() => {
+    const sorted = [...moisDisponibles].sort((a, b) => a.localeCompare(b))
+    const idx = sorted.indexOf(moisActif)
+    return idx > 0 ? sorted[idx - 1] : null
+  }, [moisDisponibles, moisActif])
 
   // ── Stats du mois ───────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -283,7 +298,7 @@ export default function GestionTab() {
     <div className="h-full flex overflow-hidden">
 
       {/* ── Colonne gauche ──────────────────────────────────────────────────── */}
-      <div className="w-[420px] shrink-0 border-r border-slate-200 bg-white flex flex-col">
+      <div className="w-[480px] shrink-0 border-r border-slate-200 bg-white flex flex-col">
 
         {/* Contrôles */}
         <div className="p-3 border-b border-slate-100 space-y-2">
@@ -344,6 +359,7 @@ export default function GestionTab() {
             affaires={affairesFiltrees}
             caList={caList}
             moisActif={moisActif}
+            moisPrecedent={moisPrecedent}
             selectedId={selectedId}
             setSelectedId={setSelectedId}
             groupByCA={isResponsable && !filtreCA}
@@ -379,45 +395,89 @@ export default function GestionTab() {
   )
 }
 
+// ── Helpers delta ─────────────────────────────────────────────────────────────
+function fmtK(v, sign = false) {
+  if (v == null) return null
+  const n = parseFloat(v); if (isNaN(n)) return null
+  const abs = Math.abs(n)
+  const str = abs >= 1_000_000 ? `${(n/1_000_000).toFixed(2)}M€`
+            : abs >= 1000      ? `${(n/1000).toFixed(0)}k€`
+            : `${Math.round(n)}€`
+  return sign && n > 0 ? `+${str}` : str
+}
+
+function Delta({ label, curr, prev, inverse = false }) {
+  if (curr == null || prev == null) return null
+  const diff = curr - prev
+  if (Math.abs(diff) < 1) return null
+  const isPos = diff > 0
+  // "inverse" = positif est mauvais (ex: heures dépassées)
+  const isGood = inverse ? !isPos : isPos
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-md ${
+      isGood ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+    }`}>
+      {isPos ? '▲' : '▼'} {fmtK(Math.abs(diff))}
+      {label && <span className="font-normal opacity-70 ml-0.5">{label}</span>}
+    </span>
+  )
+}
+
 // ── Ligne d'une affaire dans la liste ────────────────────────────────────────
-function AffaireLigne({ a, moisActif, selectedId, setSelectedId }) {
-  const fin  = a._finance || {}
-  const gest = a._gestion?.[moisActif] || {}
+function AffaireLigne({ a, moisActif, moisPrecedent, selectedId, setSelectedId }) {
+  const fin   = a._finance || {}
+  const gest  = a._gestion?.[moisActif]    || {}
+  const gestP = a._gestion?.[moisPrecedent] || {}
+  const snapC = gest._snap  || null
+  const snapP = gestP._snap || null
+
   const alerteMarge  = fin.marge != null && fin.marge < -1000
-  const alerteHeures = fin.heuresRealisees > 0 && fin.heuresPrevues > 0 && fin.heuresRealisees > fin.heuresPrevues * 1.1
+  const alerteHeures = fin.heuresRealisees > 0 && fin.heuresPrevues > 0
+                    && fin.heuresRealisees > fin.heuresPrevues * 1.1
   const alerte = alerteMarge || alerteHeures
   const isSelected = selectedId === a.id
 
-  const hPct = fin.heuresPrevues > 0 ? Math.min((fin.heuresRealisees / fin.heuresPrevues) * 100, 120) : null
+  // Détecter si quelque chose a évolué depuis le mois précédent
+  const hasEvol = snapC && snapP && (
+    Math.abs((snapC.montantFacture  || 0) - (snapP.montantFacture  || 0)) > 100 ||
+    Math.abs((snapC.heuresRealisees || 0) - (snapP.heuresRealisees || 0)) > 0.5 ||
+    Math.abs((snapC.marge          || 0) - (snapP.marge          || 0)) > 100
+  )
 
-  function fmtK(v) {
-    if (!v && v !== 0) return null
-    const n = parseFloat(v); if (isNaN(n)) return null
-    return Math.abs(n) >= 1000 ? `${(n/1000).toFixed(0)}k€` : `${Math.round(n)}€`
-  }
+  const hPct = fin.heuresPrevues > 0
+    ? Math.min((fin.heuresRealisees / fin.heuresPrevues) * 100, 120) : null
 
   return (
-    <button onClick={() => setSelectedId(a.id)}
-      className={`w-full text-left px-3 py-3 transition-colors border-l-2 ${
-        isSelected
-          ? 'bg-red-50 border-[#E31E24]'
-          : alerte
-          ? 'hover:bg-red-50/40 border-transparent hover:border-red-200'
-          : 'hover:bg-slate-50 border-transparent'
-      }`}>
+    <div className={`mx-2 my-1.5 rounded-xl border transition-all cursor-pointer ${
+      isSelected
+        ? 'border-[#E31E24] bg-red-50 shadow-sm'
+        : hasEvol
+        ? 'border-blue-200 bg-blue-50/30 hover:border-blue-300 hover:shadow-sm'
+        : alerte
+        ? 'border-red-200 bg-red-50/20 hover:border-red-300 hover:shadow-sm'
+        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+    }`}
+      onClick={() => setSelectedId(a.id)}>
 
-      {/* Ligne 1 : N° + badges + marge */}
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="flex items-center gap-1.5 min-w-0">
+      {/* ── En-tête de la card ── */}
+      <div className={`flex items-center justify-between px-3 pt-2.5 pb-1 rounded-t-xl border-b ${
+        isSelected ? 'border-[#E31E24]/20' : 'border-slate-100'
+      }`}>
+        <div className="flex items-center gap-2 min-w-0">
           <span className={`font-mono font-bold text-xs shrink-0 ${isSelected ? 'text-[#E31E24]' : 'text-slate-700'}`}>
             {a.numero}
           </span>
-          {alerte && <span className="text-xs leading-none" title="Alerte">⚠️</span>}
-          {gest.pointFait && <span className="text-green-500 text-xs font-bold leading-none">✓</span>}
+          {alerte  && <span className="text-xs" title="Alerte dépassement">⚠️</span>}
+          {gest.pointFait && <span className="text-green-600 text-xs font-bold">✓</span>}
+          {hasEvol && !isSelected && (
+            <span className="text-xs text-blue-500 font-semibold" title="Évolution vs mois précédent">↗</span>
+          )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {gest.facturationEnvisagee != null && (
-            <span className="text-xs text-blue-600 font-semibold">💳 {fmtK(gest.facturationEnvisagee)}</span>
+            <span className="text-xs text-blue-700 font-semibold bg-blue-100 px-1.5 py-0.5 rounded">
+              💳 {fmtK(gest.facturationEnvisagee)}
+            </span>
           )}
           {fin.marge != null && fin.marge !== 0 && (
             <span className={`text-xs font-bold ${fin.marge < 0 ? 'text-red-500' : 'text-green-600'}`}>
@@ -427,40 +487,53 @@ function AffaireLigne({ a, moisActif, selectedId, setSelectedId }) {
         </div>
       </div>
 
-      {/* Ligne 2 : Intitulé */}
-      <div className="text-xs font-medium text-slate-800 truncate leading-snug mb-0.5">{a.intitule || '—'}</div>
+      {/* ── Corps ── */}
+      <div className="px-3 pt-1.5 pb-2 space-y-1.5">
+        {/* Intitulé + client */}
+        <div>
+          <div className="text-xs font-semibold text-slate-800 leading-snug truncate">{a.intitule || '—'}</div>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <span className="text-xs text-slate-400 truncate">{a.client || '—'}</span>
+            {fin.montantCommande > 0 && (
+              <span className="text-xs text-slate-500 font-medium shrink-0">{fmtK(fin.montantCommande)}</span>
+            )}
+          </div>
+        </div>
 
-      {/* Ligne 3 : Client + montant */}
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <span className="text-xs text-slate-400 truncate">{a.client || '—'}</span>
-        {fin.montantCommande > 0 && (
-          <span className="text-xs text-slate-500 shrink-0">{fmtK(fin.montantCommande)}</span>
+        {/* Barre heures */}
+        {hPct !== null && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full"
+                style={{ width: `${Math.min(hPct,100)}%`, background: alerteHeures ? '#ef4444' : '#3b82f6' }} />
+            </div>
+            <span className={`text-xs shrink-0 font-medium ${alerteHeures ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+              {fin.heuresRealisees}h / {fin.heuresPrevues}h
+            </span>
+          </div>
+        )}
+
+        {/* Deltas vs mois précédent */}
+        {snapC && snapP && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            <Delta curr={snapC.montantFacture}   prev={snapP.montantFacture}   label="fact." />
+            <Delta curr={snapC.heuresRealisees}  prev={snapP.heuresRealisees}  label="h"  inverse={true} />
+            <Delta curr={snapC.marge}            prev={snapP.marge}            label="marge" />
+            <Delta curr={snapC.resteAFacturer}   prev={snapP.resteAFacturer}   label="RAF" inverse={true} />
+          </div>
         )}
       </div>
-
-      {/* Barre heures */}
-      {hPct !== null && (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all"
-              style={{ width: `${Math.min(hPct, 100)}%`, background: alerteHeures ? '#ef4444' : '#3b82f6' }} />
-          </div>
-          <span className={`text-xs shrink-0 ${alerteHeures ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-            {fin.heuresRealisees}h/{fin.heuresPrevues}h
-          </span>
-        </div>
-      )}
-    </button>
+    </div>
   )
 }
 
 // ── Liste groupée (par CA ou plate) ──────────────────────────────────────────
-function AffaireListeGroupee({ affaires, caList, moisActif, selectedId, setSelectedId, groupByCA }) {
+function AffaireListeGroupee({ affaires, caList, moisActif, moisPrecedent, selectedId, setSelectedId, groupByCA }) {
   if (!groupByCA) {
     return (
-      <div className="divide-y divide-slate-50">
+      <div className="py-1">
         {affaires.map(a => (
-          <AffaireLigne key={a.id} a={a} moisActif={moisActif} selectedId={selectedId} setSelectedId={setSelectedId} />
+          <AffaireLigne key={a.id} a={a} moisActif={moisActif} moisPrecedent={moisPrecedent} selectedId={selectedId} setSelectedId={setSelectedId} />
         ))}
       </div>
     )
@@ -510,9 +583,9 @@ function AffaireListeGroupee({ affaires, caList, moisActif, selectedId, setSelec
                 }`}>{nbVus}/{list.length}</span>
               </div>
             </div>
-            <div className="divide-y divide-slate-50">
+            <div className="py-1">
               {list.map(a => (
-                <AffaireLigne key={a.id} a={a} moisActif={moisActif} selectedId={selectedId} setSelectedId={setSelectedId} />
+                <AffaireLigne key={a.id} a={a} moisActif={moisActif} moisPrecedent={moisPrecedent} selectedId={selectedId} setSelectedId={setSelectedId} />
               ))}
             </div>
           </div>
