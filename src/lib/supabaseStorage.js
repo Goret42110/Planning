@@ -10,14 +10,15 @@
 
 import { localGetItem, localSetItem, localSubscribe, pingLocalServer } from './localServer'
 
-// Clés stockées UNIQUEMENT sur le serveur local NAS
+// Clés stockées UNIQUEMENT sur le serveur local NAS (données sensibles)
+// Les autres clés vont sur Supabase (accessibles partout)
 const LOCAL_KEYS = new Set([
-  'els_planning_data',   // affaires + planning + personnel (avec données financières)
-  'els_utilisateurs',    // comptes utilisateurs
   'els_network_key',     // clé réseau
-  'objectifs_budget',    // objectifs financiers
+  'objectifs_budget',    // objectifs financiers CA
   'els_suivi_notes',     // notes de suivi
 ])
+// Clés NAS dynamiques (gestion mensuelle)
+// els_gestion_* → local
 
 function isLocalKey(key) {
   if (LOCAL_KEYS.has(key)) return true

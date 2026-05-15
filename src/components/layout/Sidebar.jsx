@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useApp } from '../../App'
+import { useNetwork } from '../../context/NetworkContext'
 import { utilisateurs as BASE_USERS } from '../../data/utilisateurs'
 
 function getAuthUsers() {
@@ -22,6 +23,7 @@ export const NAV = [
   },
   {
     id: 'affaires-section', label: 'Affaires', icon: '📁',
+    networkOnly: true,
     children: [
       { id: 'affaires', label: 'Liste affaires' },
       { id: 'gestion',  label: 'Gestion mensuelle', roles: ['responsable', 'ca'] },
@@ -38,6 +40,7 @@ export const NAV = [
   {
     id: 'finances', label: 'Finances', icon: '💰',
     roles: ['responsable', 'ca'],
+    networkOnly: true,
     children: [
       { id: 'budget', label: 'Budget prévisionnel' },
     ],
@@ -47,6 +50,7 @@ export const NAV = [
 export default function Sidebar({ activeTab, setActiveTab }) {
   const { session, logout } = useAuth()
   const { personnel, selectedCA, setSelectedCA, caPersonnelViewAll, setCaPersonnelViewAll } = useApp()
+  const { isOnNetwork } = useNetwork()
   const navigate = useNavigate()
   const [collapsed,    setCollapsed]    = useState(false)
   const [openSections, setOpenSections] = useState(() => {
@@ -114,15 +118,13 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           const hasChildren = item.children?.filter(canSee).length > 0
           const isOpen      = openSections.has(item.id)
           const isActive    = item.id === activeTab || item.children?.some(c => c.id === activeTab)
+          const locked      = item.networkOnly && !isOnNetwork
 
           if (!hasChildren) {
-            // Item simple (Accueil)
             return (
               <button key={item.id} onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === item.id
-                    ? 'text-white'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                  activeTab === item.id ? 'text-white' : 'text-white/50 hover:text-white/80 hover:bg-white/5'
                 } ${collapsed ? 'justify-center' : ''}`}
                 style={activeTab === item.id ? { background: '#E31E24' } : {}}>
                 <span className="text-base shrink-0">{item.icon}</span>
@@ -136,19 +138,23 @@ export default function Sidebar({ activeTab, setActiveTab }) {
               {/* Section header */}
               <button onClick={() => { if (collapsed) setCollapsed(false); toggleSection(item.id) }}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-all ${
+                  locked ? 'text-white/20 cursor-default' :
                   isActive ? 'text-white bg-white/10' : 'text-white/50 hover:text-white/80 hover:bg-white/5'
                 } ${collapsed ? 'justify-center' : ''}`}>
-                <span className="text-base shrink-0">{item.icon}</span>
+                <span className="text-base shrink-0">{locked ? '🔒' : item.icon}</span>
                 {!collapsed && (
                   <>
                     <span className="flex-1 text-left truncate">{item.label}</span>
-                    <span className={`text-xs transition-transform ${isOpen ? 'rotate-90' : ''} text-white/30`}>›</span>
+                    {locked
+                      ? <span className="text-xs text-white/20">réseau</span>
+                      : <span className={`text-xs transition-transform ${isOpen ? 'rotate-90' : ''} text-white/30`}>›</span>
+                    }
                   </>
                 )}
               </button>
 
-              {/* Sous-items */}
-              {!collapsed && isOpen && (
+              {/* Sous-items — masqués si hors réseau */}
+              {!collapsed && isOpen && !locked && (
                 <div className="ml-3 mt-0.5 space-y-0.5 border-l border-white/10 pl-3">
                   {item.children.filter(canSee).map(child => (
                     <button key={child.id} onClick={() => setActiveTab(child.id)}
