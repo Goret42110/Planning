@@ -1,24 +1,21 @@
 import { useState, useEffect } from 'react'
+import { pingLocalServer } from '../lib/localServer'
 
 /**
- * Vérifie côté serveur si l'IP cliente est autorisée.
- * Retourne : 'checking' | 'allowed' | 'blocked' | 'not_configured'
+ * Vérifie si le serveur local NAS (localhost:3001) est joignable.
+ * Retourne : 'checking' | 'allowed' | 'blocked'
+ *
+ * 'allowed' → serveur NAS accessible → réseau entreprise détecté
+ * 'blocked' → serveur injoignable   → hors réseau entreprise
  */
 export function useNetworkAccess() {
   const [status, setStatus] = useState('checking')
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/network-check', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return
-        if (data.reason === 'not_configured') setStatus('not_configured')
-        else setStatus(data.allowed ? 'allowed' : 'blocked')
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('blocked')
-      })
+    pingLocalServer().then(ok => {
+      if (!cancelled) setStatus(ok ? 'allowed' : 'blocked')
+    })
     return () => { cancelled = true }
   }, [])
 
