@@ -1,15 +1,8 @@
 import { useState } from 'react'
 import { useNetwork } from '../../context/NetworkContext'
-import { useNetworkKey } from '../../hooks/useNetworkKey'
 
-/**
- * Protège une section sensible derrière un mot de passe.
- * Le mot de passe est défini par l'admin dans Administration.
- * Une fois saisi, il est mémorisé sur l'appareil.
- */
 export default function NetworkGate({ children }) {
-  const { isOnNetwork, checking } = useNetwork()
-  const { networkKey, enterKey }  = useNetworkKey()
+  const { isOnNetwork, checking, networkKey, tryKey } = useNetwork()
   const [input, setInput] = useState('')
   const [err,   setErr]   = useState(false)
 
@@ -19,25 +12,23 @@ export default function NetworkGate({ children }) {
     </div>
   )
 
-  // Mot de passe non configuré par l'admin
   if (!networkKey) return (
     <div className="h-full flex items-center justify-center">
       <div className="text-center space-y-2 text-slate-400">
         <div className="text-3xl">⚙️</div>
         <div className="font-semibold text-slate-600">Mot de passe non configuré</div>
-        <div className="text-sm">Allez dans Administration pour définir le mot de passe d'accès</div>
+        <div className="text-sm">Allez dans Administration → Clé d'accès réseau</div>
       </div>
     </div>
   )
 
-  // Accès accordé
   if (isOnNetwork) return children
 
-  // Écran de saisie
   function submit(e) {
     e.preventDefault()
-    enterKey(input)
-    if (input.trim() !== networkKey) {
+    if (input.trim() === networkKey) {
+      tryKey(input)   // met à jour le contexte → isOnNetwork devient true
+    } else {
       setErr(true)
       setInput('')
     }
@@ -69,19 +60,15 @@ export default function NetworkGate({ children }) {
               err ? 'border-red-300 bg-red-50' : 'border-slate-100 focus:border-[#E31E24]'
             }`}
           />
-          {err && (
-            <p className="text-xs text-red-600">Mot de passe incorrect, réessayez.</p>
-          )}
+          {err && <p className="text-xs text-red-600">Mot de passe incorrect, réessayez.</p>}
           <button type="submit" disabled={!input.trim()}
-            className="w-full py-3 text-sm font-bold text-white rounded-xl disabled:opacity-40 transition-opacity"
+            className="w-full py-3 text-sm font-bold text-white rounded-xl disabled:opacity-40"
             style={{ background: '#E31E24' }}>
             Accéder
           </button>
         </form>
 
-        <p className="text-xs text-slate-300 mt-5">
-          Mémorisé sur cet appareil jusqu'à déconnexion
-        </p>
+        <p className="text-xs text-slate-300 mt-5">Mémorisé sur cet appareil</p>
       </div>
     </div>
   )
