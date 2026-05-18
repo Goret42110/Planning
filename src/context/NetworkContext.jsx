@@ -1,21 +1,18 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import { pingLocalServer } from '../lib/localServer'
+import { createContext, useContext } from 'react'
+import { useNetworkKey } from '../hooks/useNetworkKey'
 
+/**
+ * Contexte d'accès aux données sensibles.
+ * Basé sur une clé réseau (mot de passe) définie par l'admin.
+ * Un seul appel Supabase au démarrage, partagé dans toute l'app.
+ */
 const NetworkContext = createContext({ isOnNetwork: false, checking: true })
 
 export function NetworkProvider({ children }) {
-  const [isOnNetwork, setIsOnNetwork] = useState(false)
-  const [checking,    setChecking]    = useState(true)
-
-  useEffect(() => {
-    pingLocalServer().then(ok => {
-      setIsOnNetwork(ok)
-      setChecking(false)
-    })
-  }, [])
+  const { isGranted, loading } = useNetworkKey()
 
   return (
-    <NetworkContext.Provider value={{ isOnNetwork, checking }}>
+    <NetworkContext.Provider value={{ isOnNetwork: isGranted, checking: loading }}>
       {children}
     </NetworkContext.Provider>
   )

@@ -1,12 +1,17 @@
+import { useState } from 'react'
 import { useNetwork } from '../../context/NetworkContext'
+import { useNetworkKey } from '../../hooks/useNetworkKey'
 
 /**
- * Protège une section sensible.
- * Utilise le contexte réseau (un seul ping au démarrage de l'app).
- * Accessible uniquement si le serveur local NAS (localhost:3001) répond.
+ * Protège une section sensible derrière un mot de passe.
+ * Le mot de passe est défini par l'admin dans Administration.
+ * Une fois saisi, il est mémorisé sur l'appareil.
  */
 export default function NetworkGate({ children }) {
   const { isOnNetwork, checking } = useNetwork()
+  const { networkKey, enterKey }  = useNetworkKey()
+  const [input, setInput] = useState('')
+  const [err,   setErr]   = useState(false)
 
   if (checking) return (
     <div className="h-full flex items-center justify-center">
@@ -14,23 +19,69 @@ export default function NetworkGate({ children }) {
     </div>
   )
 
+  // Mot de passe non configuré par l'admin
+  if (!networkKey) return (
+    <div className="h-full flex items-center justify-center">
+      <div className="text-center space-y-2 text-slate-400">
+        <div className="text-3xl">⚙️</div>
+        <div className="font-semibold text-slate-600">Mot de passe non configuré</div>
+        <div className="text-sm">Allez dans Administration pour définir le mot de passe d'accès</div>
+      </div>
+    </div>
+  )
+
+  // Accès accordé
   if (isOnNetwork) return children
+
+  // Écran de saisie
+  function submit(e) {
+    e.preventDefault()
+    enterKey(input)
+    if (input.trim() !== networkKey) {
+      setErr(true)
+      setInput('')
+    }
+  }
 
   return (
     <div className="h-full flex items-center justify-center px-4" style={{ background: '#F4F5F7' }}>
       <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 w-full max-w-sm text-center">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-md"
+
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
           style={{ background: '#1C1C2E' }}>
-          <span className="text-[#E31E24] font-bold text-2xl">🔒</span>
+          <span className="text-2xl">🔐</span>
         </div>
-        <h2 className="text-lg font-bold text-slate-900 mb-2">Réseau entreprise requis</h2>
-        <p className="text-sm text-slate-400 leading-relaxed mb-4">
+
+        <h2 className="text-lg font-bold text-slate-900 mb-1">Accès restreint</h2>
+        <p className="text-sm text-slate-400 mb-6">
           Cette section contient des données confidentielles.<br />
-          Connectez-vous au réseau interne ELS ou au VPN pour y accéder.
+          Saisissez le mot de passe d'accès ELS.
         </p>
-        <div className="bg-slate-50 rounded-xl px-4 py-3 text-xs text-slate-400 border border-slate-100">
-          Le serveur local ELS (<code>localhost:3001</code>) est introuvable sur cet appareil.
-        </div>
+
+        <form onSubmit={submit} className="space-y-3">
+          <input
+            type="password"
+            value={input}
+            onChange={e => { setInput(e.target.value); setErr(false) }}
+            autoFocus
+            placeholder="Mot de passe…"
+            className={`w-full border-2 rounded-xl px-4 py-3 text-sm text-center font-mono tracking-widest focus:outline-none transition-colors ${
+              err ? 'border-red-300 bg-red-50' : 'border-slate-100 focus:border-[#E31E24]'
+            }`}
+          />
+          {err && (
+            <p className="text-xs text-red-600">Mot de passe incorrect, réessayez.</p>
+          )}
+          <button type="submit" disabled={!input.trim()}
+            className="w-full py-3 text-sm font-bold text-white rounded-xl disabled:opacity-40 transition-opacity"
+            style={{ background: '#E31E24' }}>
+            Accéder
+          </button>
+        </form>
+
+        <p className="text-xs text-slate-300 mt-5">
+          Mémorisé sur cet appareil jusqu'à déconnexion
+        </p>
       </div>
     </div>
   )
